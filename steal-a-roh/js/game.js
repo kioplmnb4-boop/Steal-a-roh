@@ -52,6 +52,12 @@ var SAVE_KEY='balondor-steal-v2';
 var fxLevel=1,fxMul=1;
 var isTouch=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
 if(isTouch)document.body.classList.add('touch');
+/* 📱 휴대폰은 항상 가로 화면: 세로로 들고 있으면 화면 전체를 90° 돌려서 보여줘요 */
+var isPhone=isTouch&&Math.min(screen.width||9999,screen.height||9999)<=600,ROT=false;
+function VW(){return ROT?innerHeight:innerWidth;}
+function VH(){return ROT?innerWidth:innerHeight;}
+function ptX(e){return ROT?e.clientY:e.clientX;}
+function ptY(e){return ROT?innerWidth-e.clientX:e.clientY;}
 function $(id){return document.getElementById(id);}
 function rand(a,b){return a+Math.random()*(b-a);}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -582,9 +588,11 @@ function updateRemotes(dt,t){
 /* ---------- 화면 (시작 화면 + 게임 중 표시) ---------- */
 function netUI(){
   var b=$('netBox');if(!b)return;
-  if(NET.mode==='solo'){b.style.display='none';return;}
+  var bd=$('menuBadge');
+  if(NET.mode==='solo'){b.style.display='none';if(bd)bd.textContent='';return;}
   b.style.display='block';
   var names=[(NET.name||'나')+' (나)'];for(var id in REM)if(REM[id].name)names.push(REM[id].name);
+  if(bd)bd.textContent='👥'+names.length;
   $('netInfo').innerHTML='📡 방 코드 <b>'+NET.code+'</b> · '+(NET.mode==='host'?'👑 방장':'🙋 참가')+(NET.via==='ws'?' · 🛰️서버':' · 🔗직접')+' · 👥 '+names.length+'명<small>'+names.join(', ').replace(/</g,'&lt;')+'</small>';
 }
 function inviteLink(){return location.href.split('#')[0].split('?')[0]+'?room='+NET.code;}
@@ -638,14 +646,14 @@ function inviteLink(){return location.href.split('#')[0].split('?')[0]+'?room='+
    ========================================================= */
 var renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,isTouch?1.5:2));
-renderer.setSize(innerWidth,innerHeight);
+renderer.setSize(VW(),VH());
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 document.body.insertBefore(renderer.domElement,document.body.firstChild);
 var scene=new THREE.Scene();
 scene.background=new THREE.Color(0x0a1330);
 scene.fog=new THREE.Fog(0x0a1330,130,540);
-var camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.3,1500);
+var camera=new THREE.PerspectiveCamera(65,VW()/VH(),0.3,1500);
 
 scene.add(new THREE.AmbientLight(0x8fa3d9,0.65));
 scene.add(new THREE.HemisphereLight(0xcfe0ff,0x1d3a24,0.75));
@@ -1132,7 +1140,7 @@ function floatText(text,x,y,z,cls){
   tmpV.set(x,y,z).project(camera);
   if(tmpV.z>1)return;
   var d=document.createElement('div');d.className='float '+(cls||'');d.textContent=text;
-  d.style.left=((tmpV.x*0.5+0.5)*innerWidth)+'px';d.style.top=((-tmpV.y*0.5+0.5)*innerHeight)+'px';
+  d.style.left=((tmpV.x*0.5+0.5)*VW())+'px';d.style.top=((-tmpV.y*0.5+0.5)*VH())+'px';
   document.body.appendChild(d);
   setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},1300);
 }
@@ -1439,7 +1447,7 @@ function grantSteal(i){
   burst(best.ped.x,3,best.ped.z,'#ffe082',26,9);
   sfx.steal();
   var reward=Math.round((best.cfg.income*15+5)*comboMult());G.money+=reward;
-  floatText('+💰 '+fmt(reward),innerWidth/2,innerHeight*0.4,0,'money');
+  floatText('+💰 '+fmt(reward),VW()/2,VH()*0.4,0,'money');
   burst(P.x,5,P.z,'#ffd54a',18,7);
   toast('🏆 '+best.cfg.name+'의 ['+gradeOf(best.i).name+'] 큰 손을 훔쳤다! 💰+'+fmt(reward)+' 기지로 도망쳐!','good');
   wake(best);
@@ -1470,9 +1478,9 @@ function deposit(){
   var e=exhibits[i];burst(e.x,3,e.z,'#ffd54a',30,9);
   sfx.deposit();
   toast('✅ 획득! ['+gradeOf(i).name+'] 큰 손 · '+n.cfg.name+' (+'+fmt(n.cfg.income)+'/초)','good');
-  floatText('+'+fmt(n.cfg.income)+'/초',innerWidth/2,innerHeight*0.45,0,'money');
+  floatText('+'+fmt(n.cfg.income)+'/초',VW()/2,VH()*0.45,0,'money');
   var dBonus=Math.round(n.cfg.income*20*comboMult());G.money+=dBonus;
-  floatText('🔥 콤보 ×'+G.streak+' · 입금 보너스 +'+fmt(dBonus),innerWidth/2,innerHeight*0.52,0,'money');
+  floatText('🔥 콤보 ×'+G.streak+' · 입금 보너스 +'+fmt(dBonus),VW()/2,VH()*0.52,0,'money');
   if(isClient())sendHost({t:'dep',i:i});else n.carrier=null;
   if(n.state==='chase'||n.state==='charge'){n.state='return';n.tg=null;hideAim(n);}
   save();
@@ -1517,7 +1525,7 @@ function hitFx(pw,kx,kz){
   pw=pw||0;shk=Math.max(shk,1+pw*3);flashA=Math.max(flashA,0.15+pw*0.5);
   var m=Math.hypot(kx||0,kz||0),v=8+pw*42;
   if(m>0){P.kx=kx/m*v;P.kz=kz/m*v;}
-  floatText('💥 위력 '+Math.round(100+pw*400)+'%',innerWidth/2,innerHeight*0.33,0,'money');
+  floatText('💥 위력 '+Math.round(100+pw*400)+'%',VW()/2,VH()*0.33,0,'money');
   if(pw>0.4)for(var i=0;i<60*pw*fxMul;i++)emit(P.x,3,P.z,rand(-14,14),rand(2,16),rand(-14,14),pcol('#ffffff',pw,i),rand(0.5,1),20);
 }
 function fxBoom(x,z,r,col,pw){
@@ -1837,7 +1845,7 @@ function dgDamage(dmg,kx,kz,force){
   DG.hp-=dmg;DG.inv=force?1.5:0.7;
   shk=Math.max(shk,1.2+dmg/DG.max*5);flashA=Math.max(flashA,0.2+dmg/DG.max*0.5);
   var m=Math.hypot(kx||0,kz||0);if(m>0){P.kx=kx/m*16;P.kz=kz/m*16;}
-  floatText('-'+Math.round(dmg),innerWidth/2,innerHeight*0.38,0,'dmg');
+  floatText('-'+Math.round(dmg),VW()/2,VH()*0.38,0,'dmg');
   if(AC)sfx.hit();
   if(DG.hp<=0){DG.hp=0;DG.over=1;toast('💀 쓰러졌다... 기지로 돌아갑니다','bad');after(1.8,function(){exitDungeon(false);});}
 }
@@ -1966,7 +1974,7 @@ function bossDeadFx(x,z){
   if(!DG.on||DG.over)return;
   DG.over=2;
   var m=medals(),rw=Math.round((income()*300+500000)*(1+m*0.25));G.money+=rw;save();
-  toast('🏆 보스 격파! 💰 +'+fmt(rw),'good');floatText('🏆 보스 격파! +'+fmt(rw),innerWidth/2,innerHeight*0.4,0,'money');
+  toast('🏆 보스 격파! 💰 +'+fmt(rw),'good');floatText('🏆 보스 격파! +'+fmt(rw),VW()/2,VH()*0.4,0,'money');
   sfx.deposit();after(3.5,function(){if(DG.on)exitDungeon(true);});
 }
 /* 보스 스킬: 랜덤 구역을 찢어서 없애버림 */
@@ -2387,7 +2395,7 @@ function computeGoal(onPad){
   if(P.carry>=0)return '🏃 기지로 도망쳐! <b>'+Math.max(0,Math.round(P.z-BASE_Z1))+'m</b> 남음 · 조준선은 옆으로 피하거나 점프!';
   if(onPad>=0)return '✨ 패드 위에 서 있으면 1.5초마다 속도가 올라요';
   var any=G.qty.some(function(q){return q>0;});
-  if(inSafe()&&!any&&G.money>=treadPrice(0))return '🛒 오른쪽 상점에서 <b>러닝머신</b>을 사고, 기지의 패드 위에 올라가 보세요';
+  if(inSafe()&&!any&&G.money>=treadPrice(0))return isTouch?'🛒 <b>[상점]</b> 버튼에서 <b>러닝머신</b>을 사고, 패드 위에 올라가요':'🛒 오른쪽 상점에서 <b>러닝머신</b>을 사고, 기지의 패드 위에 올라가 보세요';
   var tgt=null;for(var i=0;i<N;i++){if(G.counts[i]===0){tgt=npcs[i];break;}}
   if(!tgt)return '🏆 전부 모았어요! 높은 등급을 반복해서 모으면 수입이 계속 늘어요';
   var d=Math.round(tgt.ped.z-P.z);
@@ -2437,7 +2445,7 @@ function update(dt,t){
       P.treadAcc-=1.5;
       var gain=TREADS[onPad].gain*G.qty[onPad]*skinMult();
       G.speed+=gain;sfx.tick();
-      floatText('+'+fmt(gain)+' 속도',innerWidth/2+rand(-30,30),innerHeight*0.38,0,'spd');
+      floatText('+'+fmt(gain)+' 속도',VW()/2+rand(-30,30),VH()*0.38,0,'spd');
       burst(P.x,1.5,P.z,'#7fffd4',12,5);
     }
   }else P.treadAcc=0;
@@ -2495,6 +2503,7 @@ function update(dt,t){
     $('hSpeed').textContent=fmt(G.speed);
     if(safe){for(var s=0;s<TREADS.length;s++)shopBtns[s].disabled=G.money<treadPrice(s);refreshSkins();}
     $('hComboRow').style.display=G.streak>0?'block':'none';
+    if(isTouch)syncShopBtn();
     $('hCombo').textContent=G.streak;$('hMult').textContent='(훔치기 보너스 ×'+comboMult().toFixed(1)+')';
     if(!goalEl)goalEl=$('goal');
     var gt=computeGoal(onPad);
@@ -2535,14 +2544,14 @@ addEventListener('blur',function(){keys={};});
 var dragId=null,lx=0,ly=0,cv=renderer.domElement;
 cv.addEventListener('pointerdown',function(e){
   if(dragId!==null)return;
-  dragId=e.pointerId;lx=e.clientX;ly=e.clientY;
+  dragId=e.pointerId;lx=ptX(e);ly=ptY(e);
   try{cv.setPointerCapture(dragId);}catch(_){}
 });
 cv.addEventListener('pointermove',function(e){
   if(e.pointerId!==dragId)return;
-  cam.yaw-=(e.clientX-lx)*0.006;
-  cam.pitch=clamp(cam.pitch+(e.clientY-ly)*0.005,0.08,1.3);
-  lx=e.clientX;ly=e.clientY;
+  cam.yaw-=(ptX(e)-lx)*0.006;
+  cam.pitch=clamp(cam.pitch+(ptY(e)-ly)*0.005,0.08,1.3);
+  lx=ptX(e);ly=ptY(e);
 });
 function endDrag(e){if(e.pointerId===dragId)dragId=null;}
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
@@ -2553,13 +2562,13 @@ var jz=$('joyZone'),jb=$('joyBase'),jk=$('joyKnob'),jid=null,jcx=0,jcy=0,JR=55;
 jz.addEventListener('pointerdown',function(e){
   if(jid!==null)return;
   jid=e.pointerId;try{jz.setPointerCapture(jid);}catch(_){}
-  jcx=e.clientX;jcy=e.clientY;
+  jcx=ptX(e);jcy=ptY(e);
   jb.style.left=(jcx-65)+'px';jb.style.top=(jcy-65)+'px';jb.style.bottom='auto';
   jk.style.transform='translate(0,0)';e.preventDefault();
 });
 jz.addEventListener('pointermove',function(e){
   if(e.pointerId!==jid)return;
-  var dx=e.clientX-jcx,dy=e.clientY-jcy,d=Math.hypot(dx,dy);
+  var dx=ptX(e)-jcx,dy=ptY(e)-jcy,d=Math.hypot(dx,dy);
   if(d>JR){dx*=JR/d;dy*=JR/d;}
   jk.style.transform='translate('+dx+'px,'+dy+'px)';
   joy.x=dx/JR;joy.y=-dy/JR;
@@ -2576,7 +2585,7 @@ $('btnJump').addEventListener('pointerdown',function(e){e.preventDefault();jumpH
 ['pointerup','pointercancel','pointerleave'].forEach(function(ev){$('btnJump').addEventListener(ev,function(){jumpHeld=false;});});
 
 addEventListener('resize',function(){
-  renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  applyOrient();
 });
 addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',function(){
@@ -2600,9 +2609,54 @@ $('startBtn').addEventListener('click',function(){
   toast('🏆 가장 가까운 받침대부터 훔쳐보자! (길 따라 앞으로)','good');
 });
 
+/* =========================================================
+   📱 모바일 화면 정리: 메뉴(☰)로 버튼 모으기 · 상점은 버튼으로 열기 · 세로 화면 시야 넓히기
+   ========================================================= */
+function syncShopBtn(){
+  var av=!$('shop').classList.contains('hide');
+  $('shopBtn').style.display=av&&!document.body.classList.contains('shopOpen')?'block':'none';
+  if(!av)document.body.classList.remove('shopOpen');
+}
+$('shopBtn').addEventListener('click',function(){this.blur();document.body.classList.add('shopOpen');document.body.classList.remove('menu');syncShopBtn();});
+$('shopClose').addEventListener('click',function(){this.blur();document.body.classList.remove('shopOpen');syncShopBtn();});
+$('menuBtn').addEventListener('click',function(){this.blur();document.body.classList.toggle('menu');});
+['muteBtn','fxBtn','bkBtn'].forEach(function(id){$(id).addEventListener('click',function(){if(isTouch)document.body.classList.remove('menu');});});
+renderer.domElement.addEventListener('pointerdown',function(){document.body.classList.remove('menu');});
+function applyOrient(){
+  ROT=isPhone&&innerHeight>innerWidth;
+  var bd=document.body,st=bd.style,w,h;
+  bd.classList.toggle('rot',ROT);
+  if(ROT){st.width=innerHeight+'px';st.height=innerWidth+'px';}else{st.width='';st.height='';}
+  w=VW();h=VH();
+  var rs=document.documentElement.style;rs.setProperty('--vw',(w/100)+'px');rs.setProperty('--vh',(h/100)+'px');
+  var portrait=h>w*1.1;
+  bd.classList.toggle('pt',portrait);bd.classList.toggle('ls',!portrait);bd.classList.toggle('short',h<=500);
+  renderer.setSize(w,h);
+  camera.fov=portrait?78:65;camera.aspect=w/h;camera.updateProjectionMatrix();
+  if(isTouch&&portrait&&cam.dist<20)cam.dist=20;
+}
+var orientT=0;
+function queueOrient(){clearTimeout(orientT);orientT=setTimeout(applyOrient,120);}
+addEventListener('orientationchange',queueOrient);
+if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',queueOrient);
+applyOrient();
+/* 안드로이드: 버튼을 누르면 전체 화면 + 가로 고정 (아이폰은 지원 안 해서 위의 '화면 돌리기'로 대신해요) */
+function tryLandscape(){
+  if(!isPhone)return;
+  var el=document.documentElement,rf=el.requestFullscreen||el.webkitRequestFullscreen,p=null;
+  function lock(){try{var o=screen.orientation;if(o&&o.lock){var q=o.lock('landscape');if(q&&q.catch)q.catch(function(){});}}catch(e){}}
+  if(rf&&!(document.fullscreenElement||document.webkitFullscreenElement)){try{p=rf.call(el,{navigationUI:'hide'});}catch(e){p=null;}}
+  if(p&&p.then)p.then(function(){lock();queueOrient();},function(){});else lock();
+}
+document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('button'))tryLandscape();},true);
+var rotHint=false;
+$('startBtn').addEventListener('click',function(){
+  if(isTouch&&!isPhone&&!rotHint&&innerHeight>innerWidth*1.1){rotHint=true;setTimeout(function(){toast('📱 가로로 돌리면 더 넓게 보여요!','warn');},1200);}
+});
+
 function setFx(l,auto){
   fxLevel=l;fxMul=l?1:0.3;
-  renderer.setPixelRatio(l?Math.min(window.devicePixelRatio||1,isTouch?1.5:2):1);renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(l?Math.min(window.devicePixelRatio||1,isTouch?1.5:2):1);renderer.setSize(VW(),VH());
   sun.castShadow=!!l;
   fxList.forEach(function(f){if(f.ring)f.ring.visible=!!l;f.stars.forEach(function(x){x.visible=!!l;});if(f.halo)f.halo.visible=!!l;});
   $('fxBtn').textContent=l?'✨ 이펙트: 보통':'✨ 이펙트: 최소';
