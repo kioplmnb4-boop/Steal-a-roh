@@ -33,10 +33,19 @@ const server = http.createServer((req, res) => {
   if (rel.startsWith('..') || path.isAbsolute(rel) || HIDDEN.has(rel.split(path.sep)[0])) { res.writeHead(404); res.end('not found'); return; }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404); res.end('not found'); return; }
+    /* html·js·css는 매번 새 버전인지 확인 (업데이트가 바로 보이게), 그림·소리는 1시간 저장 */
+    const ext = path.extname(file).toLowerCase();
+    const lm = st.mtime.toUTCString();
+    const fresh = ext === '.html' || ext === '.js' || ext === '.css' || ext === '.json';
+    const ims = req.headers['if-modified-since'];
+    if (ims && Math.floor(st.mtimeMs / 1000) <= Math.floor(Date.parse(ims) / 1000)) {
+      res.writeHead(304, { 'Last-Modified': lm, 'Cache-Control': fresh ? 'no-cache' : 'public, max-age=3600' }); res.end(); return;
+    }
     res.writeHead(200, {
-      'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream',
+      'Content-Type': TYPES[ext] || 'application/octet-stream',
       'Content-Length': st.size,
-      'Cache-Control': path.extname(file) === '.html' ? 'no-cache' : 'public, max-age=3600'
+      'Last-Modified': lm,
+      'Cache-Control': fresh ? 'no-cache' : 'public, max-age=3600'
     });
     fs.createReadStream(file).pipe(res);
   });
