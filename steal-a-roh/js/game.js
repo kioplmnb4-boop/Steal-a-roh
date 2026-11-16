@@ -2541,6 +2541,22 @@ function dgWorldJoin(df){
 function dgWorldCheckEnd(){
   if(hostSide()&&DG.act&&!dgAnyInside()){dgWorldReset();DG.act=false;DG.wdone=0;DG.inst++;}
 }
+/* 잡몹 머리 위 체력바 (스프라이트 2장: 검은 바탕 + 색 막대) */
+var HB_BG=new THREE.SpriteMaterial({color:0x000000,transparent:true,opacity:0.65,depthWrite:false});
+var HB_FG=[0x4cff6a,0xffd54a,0xff4040].map(function(c){return new THREE.SpriteMaterial({color:c,depthWrite:false});});
+var HB_INFO={slime:[3.6,4.2],bat:[3,2.4],golem:[6,10],imp:[3.6,5.2]}; /* [너비, 높이] */
+function addHpBar(o){
+  var inf=HB_INFO[o.t]||[3.6,4.5],w=inf[0];
+  var bg=new THREE.Sprite(HB_BG);bg.scale.set(w+0.3,0.62,1);bg.position.set(0,inf[1],0);bg.renderOrder=6;o.g.add(bg);
+  var fg=new THREE.Sprite(HB_FG[0]);fg.scale.set(w,0.38,1);fg.position.set(0,inf[1],0);fg.renderOrder=7;o.g.add(fg);
+  o.hbW=w;o.hbF=fg;o.hbR=-1;
+}
+function updHpBar(o){
+  var r=clamp(o.hp/(o.max||1),0,1);if(Math.abs(r-o.hbR)<0.004)return;o.hbR=r;
+  var f=o.hbF;f.visible=r>0;if(r<=0)return;
+  f.scale.x=o.hbW*r;f.center.set(0.5/r,0.5); /* 왼쪽 끝을 맞춰서 오른쪽부터 줄어들게 */
+  f.material=HB_FG[r>0.6?0:r>0.3?1:2];
+}
 /* 잡몹 4종 */
 function mkMob(type,x,z,id){
   var g=new THREE.Group(),m=medals(),sc=1+m*0.05,o={t:type,ph:Math.random()*6,cd:rand(1,2.5)};
@@ -2570,7 +2586,7 @@ function mkMob(type,x,z,id){
   var df=dgDiff(),wgt=o.hp/30;
   o.hp=Math.round(Math.max(o.hp*sc,hostSide()?dgRefDmg()*df.mobHits*wgt:0));o.max=o.hp;o.sp=Math.round(o.sp*1.4*10)/10;o.dmg=Math.round(o.dmg*(1+m*0.03)*df.mobDmg);o.g=g;
   o.id=id||++DG.mid;o.nx=x;o.nz=z;
-  g.position.set(x,0,z);scene.add(g);DG.mobs.push(o);return o;
+  g.position.set(x,0,z);scene.add(g);addHpBar(o);updHpBar(o);DG.mobs.push(o);return o;
 }
 function spawnMob(type){
   var a,x,z,k=0,pl=dgPlayers(),near;
@@ -2871,6 +2887,7 @@ function updateMobsVis(dt){
     if(o.t==='slime'){var sq=Math.abs(Math.sin(o.ph));p.y=sq*1.4;o.body.scale.set(1+(1-sq)*0.15,0.85+sq*0.3,1+(1-sq)*0.15);}
     else if(o.t==='bat'){p.y=3.5+Math.sin(o.ph*0.5);var f=Math.sin(o.ph)*0.7;o.wl.rotation.z=f;o.wr.rotation.z=-f;}
     else if(o.t==='golem'){p.y=Math.abs(Math.sin(o.ph))*0.35;}
+    updHpBar(o);
   }
 }
 /* 내 캐릭터 피격 판정 (모두) */
