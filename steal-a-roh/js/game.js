@@ -52,11 +52,28 @@ var TREADS=[
   {name:'신성',   gain:6000,  price:200000000,   color:'#ffd54a'},
   {name:'타이탄', gain:15000, price:1000000000,  color:'#ff1744'}
 ];
+/* =========================================================
+   ⚖️ 밸런스 (하드 모드) — 숫자만 바꾸면 게임 전체 난이도가 바뀌어요
+   ========================================================= */
+var BAL={
+  income:0.3,        /* 큰 손 수입 배율 (예전 1) */
+  npcSpeedUp:0.08,   /* 뒤쪽 수호자일수록 더 빠르게: 1 + 순서×0.08 (마지막은 약 4.3배) */
+  priceMul:5,        /* 상점(무기·장신구·아우라·아이템) 가격 배율 */
+  treadPrice:4,      /* 러닝머신 기본 가격 배율 */
+  treadGrowth:1.45,  /* 러닝머신 살 때마다 가격 오르는 비율 (예전 1.3) */
+  mulCap:6,          /* 돈·속도 획득 배율 최대치 (예전엔 곱해져서 무한정) */
+  reward:0.25,       /* 훔치기·몹·보스·상자·스테이지·이벤트 보상 배율 */
+  offline:0.1,offlineH:4, /* 오프라인 수입 10% · 최대 4시간 (예전 25% · 8시간) */
+  bossHp:2.5,        /* 보스 체력 배율 */
+  infBossGrow:3,     /* 무한 모드 다음 보스마다 체력 ×3 (예전 ×2.5) */
+  mobHp:4            /* 잡몹 기본 체력 배율 (공격력이 약할 때) */
+};
 var SPEED_MIN=8, SPEED_MAX=30000;
 var STEP_SPEED=1; /* 한 걸음 걸을 때마다 오르는 속도 */
-var PRICE_GROWTH=1.3;
+var PRICE_GROWTH=BAL.treadGrowth;
+TREADS.forEach(function(t){t.price=Math.round(t.price*BAL.treadPrice);});
 var RESPAWN=15, STUN=2, CHARGE=0.9;
-var SAVE_KEY='balondor-steal-v2';
+var SAVE_KEY='balondor-steal-v3'; /* 🔄 시즌 초기화: 이름을 바꾸면 모두 처음부터 (v2 → v3) */
 
 /* =========================================================
    유틸
@@ -89,8 +106,8 @@ var N=NPCS.length;
 var BASE_NPCS=18;
 NPCS.forEach(function(n,i){
   var bi=Math.min(i,BASE_NPCS-1),ex=Math.max(0,i-(BASE_NPCS-1));
-  n.speed=Math.round(SPEED_MIN*Math.pow(SPEED_MAX/SPEED_MIN,bi/(BASE_NPCS-1))*Math.pow(1.3,ex));
-  n.income=Math.round(2*Math.pow(10000,bi/(BASE_NPCS-1))*Math.pow(1.35,ex));
+  n.speed=Math.round(SPEED_MIN*Math.pow(SPEED_MAX/SPEED_MIN,bi/(BASE_NPCS-1))*Math.pow(1.3,ex)*(1+BAL.npcSpeedUp*i));
+  n.income=Math.max(1,Math.round(2*Math.pow(10000,bi/(BASE_NPCS-1))*Math.pow(1.35,ex)*BAL.income));
   n.z=90+i*60;
   n.side=(i%2)?1:-1;
   n.x=n.side*19;
@@ -117,7 +134,7 @@ function load(){
     if(Array.isArray(d.owned))G.owned=[0,1,2].map(function(i){return d.owned[i]?1:0;});
     if(typeof d.skin==='number'&&d.skin>=-1&&d.skin<3&&(d.skin<0||G.owned[d.skin]))G.skin=d.skin;
     if(Array.isArray(d.counts))G.counts=NPCS.map(function(_,i){return Math.max(0,d.counts[i]|0);});
-    if(typeof d.t==='number'){var offS=clamp((Date.now()-d.t)/1000,0,28800);OFFLINE=Math.floor(income()*offS*0.25);G.money+=OFFLINE;}
+    if(typeof d.t==='number'){var offS=clamp((Date.now()-d.t)/1000,0,BAL.offlineH*3600);OFFLINE=Math.floor(income()*offS*BAL.offline);G.money+=OFFLINE;}
     return true;
   }catch(e){return false;}
 }
@@ -455,7 +472,7 @@ function hostLost(byMe){
   if(P.raid){P.carry=-1;P.raid=null;holdTrophies.forEach(function(t){t.visible=false;});}
   if(DG.on)exitDungeon(false);
   dgWorldReset();DG.act=false;
-  setMySlot(SLOT_ORDER[0]);refreshBases(true);
+  setMySlot(SLOT_ORDER[0]);refreshBases(true);DROPS=[];
   toast(byMe?'📴 방에서 나왔어요 · 혼자 모드':'📴 방장과 연결이 끊겼어요 · 혼자 모드로 계속해요','warn');
   netUI();
 }
@@ -479,6 +496,8 @@ function onHostMsg(id,m){
     case 'st':applyState(r,m,true);break;
     case 'steal':hostSteal(id,m.i|0,function(ok,msg){sendTo(id,{t:'stealR',i:m.i|0,ok:ok,msg:msg||''});});break;
     case 'drop':hostDrop(id,m.i|0);break;
+    case 'putd':hostPutDown(id,m.i|0,+m.x||0,+m.z||0);break;
+    case 'pick':var pi=hostPick(id,m.id|0);sendTo(id,{t:'pickR',i:pi});break;
     case 'dep':hostDep(id,m.i|0);break;
     case 'atk':if(r.dg&&DG.act)dgHitAt(+m.x||0,+m.z||0,clamp(+m.d||0,0,1e30),clamp(+m.r||9,1,40),clamp(+m.bm||1,1,20),clamp(+m.ex||0,0,0.5),clamp(+m.bx||0,0,0.5),r.id);break;
     case 'bs':r.bc=nArr(m.c,N);r.bq=nArr(m.q,TREADS.length);bcast({t:'bs',id:id,c:r.bc,q:r.bq});break;
@@ -517,6 +536,7 @@ function onClientMsg(m){
       bossDeadFx(m.x,m.z,m.mvp,m.lh,kv,m.n|0);break;
     case 'dgt':if(DG.on)toast(m.m,m.c);break;
     case 'dgst':dgStageReward(m.s|0,!!m.b);break;
+    case 'pickR':if((m.i|0)>=0)gotPick(m.i|0);else{pickPend=0;toast('누가 먼저 주웠어!','warn');}break;
     case 'bs':
       if(!m.id||m.id===NET.my)break;
       n=getRem(m.id);n.bc=nArr(m.c,N);n.bq=nArr(m.q,TREADS.length);break;
@@ -555,7 +575,7 @@ function buildSnap(){
     dg={df:DG.df,q:DG.q.length,w:DG.wave,m:DG.mobs.map(function(o){return [o.id,o.t,r1(o.g.position.x),r1(o.g.position.z),o.hp,o.max];}),b:0};
     var b=DG.boss;if(b)dg.b=[r1(b.g.position.x),r1(b.g.position.z),Math.round(b.hp),b.max,b.rage,b.dash>0?1:0,b.wind>0?1:0,b.flash>0?1:0,b.v];
   }
-  return {t:'snap',pl:pl,np:np,dg:dg};
+  return {t:'snap',pl:pl,np:np,dg:dg,dr:DROPS.map(function(d){return [d.id,d.i,r1(d.x),r1(d.z),Math.ceil(d.t)];})};
 }
 function applySnap(m){
   var seen={};
@@ -567,6 +587,7 @@ function applySnap(m){
     applyState(r,{x:a[2],y:a[3],z:a[4],f:a[5],c:a[6],s:a[7],k:a[8],d:a[9],m:a[10],n:a[1]},false);
   });
   for(var rid in REM)if(!seen[rid]){if(REM[rid].announced)toast('👋 '+REM[rid].name+' 님이 나갔어요','warn');removeRem(rid);netUI();}
+  DROPS=(m.dr||[]).map(function(a){return {id:a[0]|0,i:clamp(a[1]|0,0,N-1),x:+a[2]||0,z:+a[3]||0,t:+a[4]||0};});
   (m.np||[]).forEach(function(a,i){
     var n=npcs[i];if(!n)return;
     n.nx=a[0];n.nz=a[1];n.state=ST_NAME[a[2]]||'sleep';n.tg=a[3]||null;
@@ -1723,7 +1744,8 @@ function trySteal(){
   if(started&&DG.on){dgAttack();return;}
   if(started&&P.stun<=0&&P.carry<0&&Math.hypot(P.x-PORTAL.x,P.z-PORTAL.z)<5){dgPickOpen();return;}
   if(!started||P.stun>0)return;
-  if(P.carry>=0){toast('이미 아이템을 들고 있어! 기지로 가자','warn');return;}
+  if(P.carry>=0){putDown();return;} /* 들고 있을 때 E = 그 자리에 내려놓기 */
+  var dp=findDrop();if(dp){pickDrop(dp);return;}
   var sn=findSnatch();if(sn){startSnatch(sn);return;}
   var rd=findRaid();if(rd){startRaid(rd);return;}
   var best=null,bd=6;
@@ -1774,11 +1796,72 @@ function grantSteal(i){
   holdTrophies.forEach(function(t,k){t.visible=(k===P.carry);});
   burst(best.ped.x,3,best.ped.z,'#ffe082',26,9);
   sfx.steal();
-  var reward=Math.round((best.cfg.income*15+5)*comboMult());gainMoney(reward);
+  var reward=Math.round((best.cfg.income*15+5)*comboMult()*BAL.reward);gainMoney(reward);
   floatText('+💰 '+fmt(reward),VW()/2,VH()*0.4,0,'money');
   burst(P.x,5,P.z,'#ffd54a',18,7);
   toast('🏆 '+best.cfg.name+'의 ['+gradeOf(best.i).name+'] 큰 손을 훔쳤다! 💰+'+fmt(reward)+' 기지로 도망쳐!','good');
   wake(best);
+}
+/* ---------- 큰 손 내려놓기 / 줍기 (방장이 관리) ---------- */
+var DROPS=[],dropSeq=0,DROP_LIFE=25,dropVis={},pickPend=0;
+function putDown(){
+  if(P.carry<0||P.stun>0||DG.on)return;
+  if(P.raid){var ri=P.carry;sendPeer(P.raid,{t:'raidBack',i:ri,why:'drop'});P.carry=-1;P.raid=null;holdTrophies.forEach(function(t){t.visible=false;});toast('📦 친구 기지에서 훔친 큰 손은 내려놓으면 주인에게 돌아가요','warn');return;}
+  var i=P.carry;P.carry=-1;holdTrophies.forEach(function(t){t.visible=false;});
+  var x=clamp(P.x+Math.sin(P.face)*1.5,-27,27),z=Math.max(BASE_Z1+2,P.z+Math.cos(P.face)*1.5);
+  if(hostSide())hostPutDown(NET.my,i,x,z);else sendHost({t:'putd',i:i,x:r1(x),z:r1(z)});
+  sfx.tick();burst(x,2,z,'#ffd54a',14,6);
+  toast('📦 큰 손을 내려놨어! '+DROP_LIFE+'초 안에 다시 [E]로 주울 수 있어 (친구도 주울 수 있어요)','good');
+}
+function hostPutDown(id,i,x,z){
+  var n=npcs[i];if(!n||n.carrier!==id)return;
+  n.carrier=null;if(id!==NET.my&&REM[id])REM[id].carry=-1;
+  if(n.tg===id&&(n.state==='chase'||n.state==='charge')){n.state='return';n.tg=null;hideAim(n);}
+  DROPS.push({id:++dropSeq,i:i,x:clamp(x,-27,27),z:clamp(z,BASE_Z1+2,Z1-3),t:DROP_LIFE});
+}
+function hostPick(id,did){
+  for(var k=0;k<DROPS.length;k++)if(DROPS[k].id===did){
+    var d=DROPS[k];
+    if(id!==NET.my){var r=REM[id];if(!r||r.carry>=0)return -1;}
+    DROPS.splice(k,1);var n=npcs[d.i];
+    n.carrier=id;n.ped.has=false;n.tg=id;if(id!==NET.my&&REM[id])REM[id].carry=d.i;
+    if(n.state!=='chase'&&n.state!=='charge')wake(n);
+    return d.i;
+  }
+  return -1;
+}
+function hostDropsTick(dt){
+  for(var k=DROPS.length-1;k>=0;k--){var d=DROPS[k];d.t-=dt;
+    if(d.t<=0){DROPS.splice(k,1);var n=npcs[d.i];if(n&&!n.carrier&&!n.ped.has){n.ped.has=true;n.ped.pop=0;}}}
+}
+function findDrop(){
+  if(DG.on||P.carry>=0||P.stun>0)return null;
+  var best=null,bd=3.6;DROPS.forEach(function(d){var dd=Math.hypot(P.x-d.x,P.z-d.z);if(dd<bd){bd=dd;best=d;}});return best;
+}
+function pickDrop(d){
+  var now=performance.now();if(pickPend>now)return;
+  if(hostSide()){var i=hostPick(NET.my,d.id);if(i>=0)gotPick(i);}
+  else{pickPend=now+1200;sendHost({t:'pick',id:d.id});}
+}
+function gotPick(i){
+  pickPend=0;if(P.carry>=0)return;
+  P.carry=i;P.raid=null;holdTrophies.forEach(function(t,k){t.visible=(k===i);});
+  burst(P.x,4,P.z,'#ffd54a',20,8);sfx.steal();
+  toast('🤲 ['+gradeOf(i).name+'] 큰 손을 주웠다! 기지로 도망쳐!','good');
+}
+/* 바닥에 놓인 큰 손 보이기 (모두) */
+function dropsVis(dt){
+  var seen={};
+  DROPS.forEach(function(d){
+    seen[d.id]=1;var v=dropVis[d.id];
+    if(!v){var g=new THREE.Group(),t=makeTrophy(ITEM_COLORS[d.i],false,d.i);t.scale.set(1.3,1.3,1.3);g.add(t);
+      var beam=new THREE.Mesh(pilG,gm(ITEM_COLORS[d.i],0.35));beam.scale.set(0.9,14,0.9);g.add(beam);
+      var ring=new THREE.Mesh(ringG,gm(0xffd54a,0.8));ring.scale.set(2.4,1,2.4);ring.position.y=0.08;g.add(ring);
+      g.position.set(d.x,0,d.z);scene.add(g);v=dropVis[d.id]={g:g,t:t,ring:ring};}
+    v.g.position.set(d.x,0,d.z);v.t.rotation.y+=dt*2;v.t.position.y=0.6+Math.sin(performance.now()/300)*0.25;
+    var left=d.t;v.ring.material.opacity=left<5?(Math.sin(performance.now()/90)>0?0.9:0.2):0.8;
+  });
+  for(var id in dropVis)if(!seen[id]){scene.remove(dropVis[id].g);delete dropVis[id];}
 }
 function dropItem(){
   if(P.carry<0)return -1;
@@ -1963,7 +2046,7 @@ function deposit(){
   sfx.deposit();
   toast('✅ 획득! ['+gradeOf(i).name+'] 큰 손 · '+n.cfg.name+' (+'+fmt(n.cfg.income)+'/초)','good');
   floatText('+'+fmt(n.cfg.income)+'/초',VW()/2,VH()*0.45,0,'money');
-  var dBonus=Math.round(n.cfg.income*20*comboMult());gainMoney(dBonus);
+  var dBonus=Math.round(n.cfg.income*20*comboMult()*BAL.reward);gainMoney(dBonus);
   floatText('🔥 콤보 ×'+G.streak+' · 입금 보너스 +'+fmt(dBonus),VW()/2,VH()*0.52,0,'money');
   if(isClient())sendHost({t:'dep',i:i});else n.carrier=null;
   if(n.state==='chase'||n.state==='charge'){n.state='return';n.tg=null;hideAim(n);}
@@ -2477,10 +2560,10 @@ function dgDmg(){return Math.round((10+medals()*4)*Math.max(1,G.speed*DG_DMG_PER
 /* mob: 잡몹 수 배율 · mobHits: 던전 안 최고 공격력으로 잡몹을 몇 대 때려야 죽는지 · bossHpFix: 보스 체력(고정)
    (공격력이 아무리 세도 원콤이 안 되게 체력이 공격력을 따라 커져요) */
 var DG_DIFFS=[
-  {name:'쉬움',ico:'🟢',col:'#66bb6a',mob:1.0,mobHits:1,mobDmg:0.8,bossHpFix:5e6,bossDmg:0.7,atk:1.2,rip:1.3,reward:0.5,chest:1,desc:'잡몹 ×1 · 보스 체력 500만 · 보상 ×0.5'},
-  {name:'보통',ico:'🟡',col:'#ffca28',mob:1.7,mobHits:2,mobDmg:1.1,bossHpFix:3e7,bossDmg:1.2,atk:1,rip:1,reward:1,chest:2,desc:'잡몹 ×1.7 · 보스 체력 3천만 · 보상 ×1'},
-  {name:'어려움',ico:'🔴',col:'#ef5350',mob:3,mobHits:5,mobDmg:1.8,bossHpFix:1.5e8,bossDmg:2.5,atk:0.65,rip:0.6,reward:3,chest:3,desc:'잡몹 ×3 (몹 5대) · 보스 체력 1.5억 · 보스 공격 ×2.5 · 보상 ×3'},
-  {name:'무한',ico:'♾️',col:'#b36bff',inf:1,reward:1,chest:2,desc:'끝없는 스테이지 · 10스테이지마다 보스 (첫 보스 = 어려움 1.5억, 다음 보스마다 ×2.5) · 깬 스테이지만큼 골드·속도'}
+  {name:'쉬움',ico:'🟢',col:'#66bb6a',mob:1.0,mobHits:3,mobDmg:0.8,bossHpFix:5e6,bossDmg:0.7,atk:1.2,rip:1.3,reward:0.5,chest:1,desc:'잡몹 ×1 · 보스 체력 1,250만 · 보상 ×0.5'},
+  {name:'보통',ico:'🟡',col:'#ffca28',mob:1.7,mobHits:6,mobDmg:1.1,bossHpFix:3e7,bossDmg:1.2,atk:1,rip:1,reward:1,chest:2,desc:'잡몹 ×1.7 · 보스 체력 7,500만 · 보상 ×1'},
+  {name:'어려움',ico:'🔴',col:'#ef5350',mob:3,mobHits:12,mobDmg:1.8,bossHpFix:1.5e8,bossDmg:2.5,atk:0.65,rip:0.6,reward:3,chest:3,desc:'잡몹 ×3 (몹 12대) · 보스 체력 3.75억 · 보스 공격 ×2.5 · 보상 ×3'},
+  {name:'무한',ico:'♾️',col:'#b36bff',inf:1,reward:1,chest:2,desc:'끝없는 스테이지 · 10스테이지마다 보스 (첫 보스 = 어려움 3.75억, 다음 보스마다 ×3) · 깬 스테이지만큼 골드·속도'}
 ];
 var MOB_CAP=60; /* 한 번에 나와 있는 잡몹 최대 수 (나머지는 잡을 때마다 이어서 나와요) */
 /* 무한 모드: 스테이지가 오를수록 어려움 기준에서 점점 세져요 */
@@ -2489,7 +2572,7 @@ function dgDiff(){
   var h=DG_DIFFS[2],st=Math.max(1,DG.wave||1),k=Math.max(1,Math.ceil(st/10));
   return {name:'무한',ico:'♾️',col:d.col,inf:1,reward:d.reward,desc:d.desc,
     mob:2*(1+0.05*st),mobHits:h.mobHits*Math.pow(1.07,st),mobDmg:h.mobDmg*(1+0.05*st),
-    bossHpFix:h.bossHpFix*Math.pow(2.5,k-1),chest:2,bossDmg:h.bossDmg*(1+0.25*(k-1)),
+    bossHpFix:h.bossHpFix*Math.pow(BAL.infBossGrow,k-1),chest:2,bossDmg:h.bossDmg*(1+0.25*(k-1)),
     atk:Math.max(0.4,h.atk*Math.pow(0.93,k-1)),rip:Math.max(0.35,h.rip*Math.pow(0.93,k-1))};
 }
 /* 플레이어 체력: 메달 + 속도에 따라 커져요 (보스 데미지는 예전 기준 체력으로 계산해서 체력이 늘면 그만큼 버텨요) */
@@ -2503,7 +2586,7 @@ function dgRefDmg(){
   for(var id in REM){var r=REM[id];if(r.dg&&r.dd>m)m=r.dd;}
   return m||dgDmg();
 }
-var INF_KEY='steal-a-roh-inf-best',infBest=0;try{infBest=+localStorage.getItem(INF_KEY)||0;}catch(e){}
+var INF_KEY='steal-a-roh-inf-best-s2',infBest=0;try{infBest=+localStorage.getItem(INF_KEY)||0;}catch(e){}
 function dgDamage(dmg,kx,kz,force){
   if(DG.over||(!force&&DG.inv>0))return;
   var S=DG.S;
@@ -2599,7 +2682,7 @@ function mkMob(type,x,z,id){
     o.hp=40;o.sp=5;o.dmg=10;o.r=1.8;o.col='#e53935';o.rng=1;
   }
   var df=dgDiff(),wgt=o.hp/30;
-  o.hp=Math.round(Math.max(o.hp*sc,hostSide()?dgRefDmg()*df.mobHits*wgt:0));o.max=o.hp;o.sp=Math.round(o.sp*1.4*10)/10;o.dmg=Math.round(o.dmg*(1+m*0.03)*df.mobDmg);o.g=g;
+  o.hp=Math.round(Math.max(o.hp*sc*BAL.mobHp,hostSide()?dgRefDmg()*df.mobHits*wgt:0)); /* 몹 내구도: 최고 공격력 × 몇 대 */o.max=o.hp;o.sp=Math.round(o.sp*1.4*10)/10;o.dmg=Math.round(o.dmg*(1+m*0.03)*df.mobDmg);o.g=g;
   o.id=id||++DG.mid;o.nx=x;o.nz=z;
   g.position.set(x,0,z);scene.add(g);addHpBar(o);updHpBar(o);DG.mobs.push(o);return o;
 }
@@ -2622,7 +2705,7 @@ function startWave(w){
   while(DG.q.length&&DG.mobs.length<MOB_CAP)spawnMob(DG.q.shift());
   dgToast(df.inf?'♾️ 스테이지 '+w+' 시작! (잡몹 '+list.length+'마리)':'⚔️ 웨이브 '+w+'/3 시작! ('+df.ico+' '+df.name+' · 잡몹 '+list.length+'마리)','warn');
 }
-function mobDeadFx(x,z,col){burst(x,2,z,col,18,8);burst(x,2,z,'#ffffff',8,6);if(DG.on)gainMoney(Math.round((income()+20)*3));if(DG.on&&DG.S.killHeal&&Math.hypot(x-P.x,z-P.z)<22)augHeal(DG.S.killHeal);}
+function mobDeadFx(x,z,col){burst(x,2,z,col,18,8);burst(x,2,z,'#ffffff',8,6);if(DG.on)gainMoney(Math.round((income()+20)*3*BAL.reward));if(DG.on&&DG.S.killHeal&&Math.hypot(x-P.x,z-P.z)<22)augHeal(DG.S.killHeal);}
 function killMob(o){
   var i=DG.mobs.indexOf(o);if(i>=0)DG.mobs.splice(i,1);scene.remove(o.g);
   var p=o.g.position;mobDeadFx(p.x,p.z,o.col);
@@ -2747,7 +2830,7 @@ function makeBossVis(x,z,v){
 }
 function spawnBoss(){
   if(!DG.act||DG.wdone)return;
-  var df=dgDiff(),v=bossPickType(),b=makeBossVis(DX,DZ-HALF*0.3,v),max=Math.round(df.bossHpFix*BOSS_TYPES[v].hp); /* 보스 체력: 난이도별 고정 큰 숫자 × 보스 종류 */
+  var df=dgDiff(),v=bossPickType(),b=makeBossVis(DX,DZ-HALF*0.3,v),max=Math.round(df.bossHpFix*BOSS_TYPES[v].hp*BAL.bossHp); /* 보스 체력: 난이도별 고정 큰 숫자 × 보스 종류 */
   b.dmgBy={};b.last=null;
   b.hp=max;b.max=max;DG.boss=b;
   DG.ripT=2.5;if(DG.on){shk=3;flashA=0.5;}fxBoom(DX,DZ-HALF*0.3,16,'#b36bff',0.8);
@@ -2782,8 +2865,8 @@ function dgStageClear(st,boss){bcast({t:'dgst',s:st,b:boss?1:0});dgStageReward(s
 function dgStageReward(st,boss){
   if(!DG.on||DG.over)return;
   var mul=boss?5:1;
-  var gold=Math.round((income()*8+20000)*st*mul*DG.S.gold);
-  var spd=Math.round((G.speed*0.004+25)*st*mul*DG.S.spdRw);
+  var gold=Math.round((income()*8+20000)*st*mul*DG.S.gold*BAL.reward);
+  var spd=Math.round((G.speed*0.004+25)*st*mul*DG.S.spdRw*BAL.reward);
   gainMoney(gold);gainSpeed(spd);DG.runSt=Math.max(DG.runSt,st);G.x.st.inf=Math.max(G.x.st.inf,st);
   if(st>infBest){infBest=st;try{localStorage.setItem(INF_KEY,String(st));}catch(e){}}
   floatText('♾️ '+st+'스테이지 클리어! 💰+'+fmt(gold)+' ⚡+'+fmt(spd),VW()/2,VH()*0.33,0,'money');
@@ -2802,8 +2885,8 @@ function bossDeadFx(x,z,mvp,lh,v,nPl){
   bossBanner('👑 BOSS DOWN!',bt.nm+' 격파'+(isMvp?' · 🏅 MVP':'')+(isLh?' · 🗡️ 막타':''),'#ffd54a');
   var lines=[];
   if(!inf){ /* 일반 던전: 큰 보상 + 속도 */
-    var m=medals(),rw=Math.round((income()*900+1500000)*(1+m*0.25)*df.reward*(isMvp?1.5:1));
-    var sp=Math.round(G.speed*0.08*df.reward*(isMvp?1.5:1)+100);
+    var m=medals(),rw=Math.round((income()*900+1500000)*(1+m*0.25)*df.reward*(isMvp?1.5:1)*BAL.reward);
+    var sp=Math.round((G.speed*0.08*df.reward*(isMvp?1.5:1)+100)*BAL.reward);
     gainMoney(rw);gainSpeed(sp);lines.push('💰 보스 보상 +'+fmt(rw),'⚡ 속도 +'+fmt(sp));
   }
   /* 보스 상자: 난이도만큼 + MVP·막타 보너스 */
@@ -2820,8 +2903,8 @@ function bossDeadFx(x,z,mvp,lh,v,nPl){
 /* 보스 상자 한 칸: 골드 대박 / 속도 / 트로피(높은 등급일수록 드묾) */
 function bossChestRoll(mul){
   var r=Math.random();
-  if(r<0.45){var g=Math.round((income()*240+400000)*rand(1,3)*Math.max(0.5,mul));gainMoney(g);return '💰 골드 주머니 +'+fmt(g);}
-  if(r<0.75){var s=Math.round(G.speed*rand(0.04,0.1)*Math.max(0.5,mul)+50);gainSpeed(s);return '⚡ 속도 물약 +'+fmt(s);}
+  if(r<0.45){var g=Math.round((income()*240+400000)*rand(1,3)*Math.max(0.5,mul)*BAL.reward);gainMoney(g);return '💰 골드 주머니 +'+fmt(g);}
+  if(r<0.75){var s=Math.round((G.speed*rand(0.04,0.1)*Math.max(0.5,mul)+50)*BAL.reward);gainSpeed(s);return '⚡ 속도 물약 +'+fmt(s);}
   var tot=0,i;for(i=0;i<N;i++)tot+=1/(i+1);var x=Math.random()*tot,pick=0;for(i=0;i<N;i++){x-=1/(i+1);if(x<=0){pick=i;break;}}
   G.counts[pick]++;updateExhibit(pick);updateHall();
   return '🏆 트로피! ['+gradeOf(pick).name+'] '+NPCS[pick].name+' (+'+fmt(NPCS[pick].income)+'/초)';
@@ -3037,7 +3120,7 @@ var AUGS=[
   {id:'wargod',t:2,ic:'⚔️',nm:'전투의 신',ds:'공격력 +100% · 쿨타임 -20% · 범위 +20%',st:1,f:function(S){S.dmg*=2;S.cd*=0.8;S.range*=1.2;}},
   {id:'fortress',t:2,ic:'🏰',nm:'철옹성',ds:'받는 피해 -40% · 최대 체력 +100%',st:0,f:function(S){S.dr+=0.4;S.hp*=2;}},
   {id:'orbit',t:2,ic:'🌀',nm:'회전 칼날',ds:'내 주변을 도는 칼날 3개가 계속 공격 (공격력 60%)',st:1,f:function(S){S.orbit+=1;}},
-  {id:'midas',t:2,ic:'👑',nm:'미다스의 손',ds:'스테이지 골드·속도 보상 ×2.5',st:1,f:function(S){S.gold*=2.5;S.spdRw*=2.5;}},
+  {id:'midas',t:2,ic:'👑',nm:'미다스의 손',ds:'스테이지 골드·속도 보상 ×1.8',st:1,f:function(S){S.gold*=1.8;S.spdRw*=1.8;}},
   {id:'precise',t:2,ic:'🎯',nm:'치명적 정밀함',ds:'치명타 확률 +40% · 치명타 피해 3배',st:0,f:function(S){S.crit+=0.4;S.critMul=Math.max(S.critMul,3);}},
   {id:'bossbane',t:2,ic:'☠️',nm:'보스 학살자',ds:'보스 피해 +150% · 체력 10% 미만 보스 처형',st:0,f:function(S){S.bossDmg*=2.5;S.bexec=Math.max(S.bexec,0.1);}},
   {id:'meteor',t:2,ic:'☄️',nm:'유성우',ds:'4초마다 주변 5곳에 공격력 250% 유성',st:1,f:function(S){S.meteor+=1;}},
@@ -3576,7 +3659,7 @@ function update(dt,t){
     P.x+=dx*spd*dt;P.z+=dz*spd*dt;
     P.face=lerpAngle(P.face,Math.atan2(dx,dz),Math.min(1,dt*14));
     moving=true;var ph0=Math.floor(P.phase/Math.PI);P.phase+=dt*clamp(spd*0.9,8,26);
-    if(Math.floor(P.phase/Math.PI)>ph0&&P.y-P.gy<0.05&&P.stun<=0){gainSpeed(STEP_SPEED);G.x.st.steps++;} /* 한 걸음 = 속도 +1 */
+    if(Math.floor(P.phase/Math.PI)>ph0&&P.y-P.gy<0.05&&P.stun<=0){G.speed+=STEP_SPEED;G.x.st.steps++;} /* 한 걸음 = 속도 +1 */
   }
   P.mv=moving;
   clampP();
@@ -3630,6 +3713,7 @@ function update(dt,t){
   for(var bs=0;bs<SLOT_N;bs++){var bb=BASES[bs];if(bs!==mySlot&&bb.built&&bb.g.visible)bb.pads.forEach(function(p){if(p.q>0)p.tex.offset.y-=dt*0.8;});}
   basesT+=dt;if(basesT>0.5){basesT=0;refreshBases();}
   extrasTick(dt);
+  if(hostSide())hostDropsTick(dt);dropsVis(dt);
   for(var jq=0;jq<JPADS.length;jq++)JPADS[jq].tex.rotation.z+=dt*1.5;
 
   /* ----- NPC/발사체 ----- */
@@ -3669,13 +3753,15 @@ function update(dt,t){
       if(d<nd&&np.ped.has&&np.state==='sleep'){nd=d;near=np;}
     }
   }
-  var nearS=(P.carry<0&&P.stun<=0)?findSnatch():null;
+  var nearS=(P.carry<0&&P.stun<=0)?findSnatch():null,nearD=(!nearS&&P.carry<0)?findDrop():null;
   var pr=$('prompt'),nearR=(!near&&!nearS&&P.carry<0&&P.stun<=0)?findRaid():null;
-  if(nearS){near=null;pr.style.display='block';pr.textContent=(isTouch?'[훔치기] 버튼':'[E] 키')+' — 🫳 '+(nearS.name||'친구')+' 님이 들고 가는 ['+gradeOf(nearS.vc).name+' 등급] 큰 손 뺏기';}
+  if(nearD&&!nearS){near=null;pr.style.display='block';pr.textContent=(isTouch?'[훔치기] 버튼':'[E] 키')+' — 🤲 떨어진 ['+gradeOf(nearD.i).name+'] 큰 손 줍기 ('+Math.ceil(nearD.t)+'초 뒤 받침대로)';}
+  else if(P.carry>=0&&!DG.on&&!inSafe()){near=null;pr.style.display='block';pr.textContent=(isTouch?'[훔치기] 버튼':'[E] 키')+' — 📦 들고 있는 큰 손 여기 내려놓기';}
+  else if(nearS){near=null;pr.style.display='block';pr.textContent=(isTouch?'[훔치기] 버튼':'[E] 키')+' — 🫳 '+(nearS.name||'친구')+' 님이 들고 가는 ['+gradeOf(nearS.vc).name+' 등급] 큰 손 뺏기';}
   else if(near){pr.style.display='block';pr.textContent=(isTouch?'[훔치기] 버튼':'[E] 키')+' — '+near.cfg.name+'의 ['+gradeOf(near.i).name+' 등급] 큰 손 훔치기';}
   else if(nearR){pr.style.display='block';pr.textContent=(isTouch?'[훔치기] 버튼':'[E] 키')+' — 🦝 '+(nearR.o.name||'친구')+'의 ['+gradeOf(nearR.i).name+' 등급] 큰 손 훔치기';}
   else pr.style.display='none';
-  $('btnSteal').classList.toggle('ready',!!(near||nearR||nearS));
+  $('btnSteal').classList.toggle('ready',!!(near||nearR||nearS||nearD||P.carry>=0));
 
   /* ----- HUD ----- */
   hudT+=dt;
@@ -3742,7 +3828,12 @@ addEventListener('keyup',function(e){keys[e.code]=false;});
 addEventListener('blur',function(){keys={};});
 
 var dragId=null,lx=0,ly=0,cv=renderer.domElement;
+/* 우클릭 꾹 누르기: 마우스 포인터를 그 자리에 고정(숨김)하고 화면만 돌려요 */
+var rLock=false;
 cv.addEventListener('pointerdown',function(e){
+  if(e.pointerType==='mouse'&&e.button===2){
+    rLock=true;try{cv.requestPointerLock();}catch(_){}e.preventDefault();return;
+  }
   if(dragId!==null)return;
   dragId=e.pointerId;lx=ptX(e);ly=ptY(e);
   try{cv.setPointerCapture(dragId);}catch(_){}
@@ -3757,6 +3848,13 @@ function endDrag(e){if(e.pointerId===dragId)dragId=null;}
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 cv.addEventListener('wheel',function(e){cam.dist=clamp(cam.dist+e.deltaY*0.01,8,32);e.preventDefault();},{passive:false});
 cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+document.addEventListener('mousemove',function(e){
+  if(!rLock||document.pointerLockElement!==cv)return;
+  cam.yaw-=(e.movementX||0)*0.004;
+  cam.pitch=clamp(cam.pitch+(e.movementY||0)*0.0035,0.08,1.3);
+});
+document.addEventListener('mouseup',function(e){if(e.button===2&&rLock){rLock=false;try{document.exitPointerLock();}catch(_){}}});
+document.addEventListener('pointerlockchange',function(){if(document.pointerLockElement!==cv)rLock=false;});
 
 var jz=$('joyZone'),jb=$('joyBase'),jk=$('joyKnob'),jid=null,jcx=0,jcy=0,JR=55;
 jz.addEventListener('pointerdown',function(e){
@@ -3875,27 +3973,26 @@ var GRADE_C=['#b0bec5','#42a5f5','#ab47bc','#ffa726','#ff1744','#ffd54a'],GRADE_
 /* 무기: k=melee(주변 원형 공격) / gun(가까운 적 자동 조준) · dmg=공격력 배율 · cd=쿨타임 배율(낮을수록 빠름) · rng=사거리 */
 var WEAPONS=[
   {id:'fist',nm:'맨주먹',ic:'✊',g:0,k:'melee',dmg:1,cd:1,rng:1,price:0,ds:'기본 주먹'},
-  {id:'bat',nm:'야구 방망이',ic:'🏏',g:0,k:'melee',dmg:1.5,cd:1.05,rng:1.1,price:1e4,ds:'묵직한 한 방'},
-  {id:'pistol',nm:'권총',ic:'🔫',g:0,k:'gun',dmg:1.3,cd:0.8,rng:35,price:1e5,shot:'single',ds:'가까운 적 1명 자동 조준'},
-  {id:'sword',nm:'강철 검',ic:'🗡️',g:1,k:'melee',dmg:2.4,cd:0.9,rng:1.25,price:1e6,ds:'빠르고 넓은 베기'},
-  {id:'smg',nm:'기관단총',ic:'💨',g:1,k:'gun',dmg:0.9,cd:0.32,rng:30,price:1e7,shot:'single',ds:'엄청 빠른 연사'},
-  {id:'shotgun',nm:'샷건',ic:'💥',g:2,k:'gun',dmg:2,cd:1.3,rng:22,price:1e8,shot:'spread',n:6,ds:'가까운 적 6명에게 동시에'},
-  {id:'hammer',nm:'거대 망치',ic:'🔨',g:2,k:'melee',dmg:6,cd:1.7,rng:1.6,price:1e9,ds:'느리지만 엄청 아프고 넓음'},
-  {id:'sniper',nm:'저격총',ic:'🎯',g:3,k:'gun',dmg:18,cd:2.2,rng:75,price:1e10,shot:'single',ds:'멀리 있는 적 1명에게 초강력 한 발'},
-  {id:'rocket',nm:'로켓 런처',ic:'🚀',g:3,k:'gun',dmg:8,cd:1.8,rng:50,price:5e10,shot:'aoe',aoe:9,ds:'맞은 곳 주변 폭발'},
-  {id:'katana',nm:'번개 카타나',ic:'⚡',g:3,k:'melee',dmg:7,cd:0.65,rng:1.35,price:1e11,ds:'빠르고 강한 번개 베기'},
-  {id:'laser',nm:'레이저 캐논',ic:'🔆',g:4,k:'gun',dmg:6,cd:0.6,rng:65,price:1e12,shot:'line',ds:'일직선 위의 적 전부 관통'},
-  {id:'scythe',nm:'사신의 낫',ic:'☠️',g:4,k:'melee',dmg:16,cd:0.85,rng:1.9,price:5e12,ds:'아주 넓은 죽음의 베기'},
-  {id:'minigun',nm:'미니건',ic:'🌪️',g:4,k:'gun',dmg:2.2,cd:0.12,rng:40,price:2e13,shot:'single',ds:'초당 20발 이상 쏟아붓기'}
+  {id:'bat',nm:'야구 방망이',ic:'🏏',g:0,k:'melee',dmg:1.2,cd:1.1,rng:1.05,price:1e4,ds:'묵직한 한 방'},
+  {id:'pistol',nm:'권총',ic:'🔫',g:0,k:'gun',dmg:0.9,cd:0.95,rng:30,price:1e5,shot:'single',ds:'가까운 적 1명 자동 조준'},
+  {id:'sword',nm:'강철 검',ic:'🗡️',g:1,k:'melee',dmg:1.6,cd:0.95,rng:1.15,price:1e6,ds:'빠르고 넓은 베기'},
+  {id:'smg',nm:'기관단총',ic:'💨',g:1,k:'gun',dmg:0.45,cd:0.42,rng:26,price:1e7,shot:'single',ds:'엄청 빠른 연사'},
+  {id:'shotgun',nm:'샷건',ic:'💥',g:2,k:'gun',dmg:1.1,cd:1.5,rng:18,price:1e8,shot:'spread',n:4,ds:'가까운 적 4명에게 동시에'},
+  {id:'hammer',nm:'거대 망치',ic:'🔨',g:2,k:'melee',dmg:3.2,cd:1.9,rng:1.4,price:1e9,ds:'느리지만 엄청 아프고 넓음'},
+  {id:'sniper',nm:'저격총',ic:'🎯',g:3,k:'gun',dmg:8,cd:2.7,rng:65,price:1e10,shot:'single',ds:'멀리 있는 적 1명에게 초강력 한 발'},
+  {id:'rocket',nm:'로켓 런처',ic:'🚀',g:3,k:'gun',dmg:3.6,cd:2.2,rng:42,price:5e10,shot:'aoe',aoe:6.5,ds:'맞은 곳 주변 폭발'},
+  {id:'katana',nm:'번개 카타나',ic:'⚡',g:3,k:'melee',dmg:3.6,cd:0.8,rng:1.2,price:1e11,ds:'빠르고 강한 번개 베기'},
+  {id:'laser',nm:'레이저 캐논',ic:'🔆',g:4,k:'gun',dmg:2.8,cd:0.8,rng:55,price:1e12,shot:'line',ds:'일직선 위의 적 전부 관통'},
+  {id:'scythe',nm:'사신의 낫',ic:'☠️',g:4,k:'melee',dmg:7,cd:1,rng:1.6,price:5e12,ds:'아주 넓은 죽음의 베기'},
+  {id:'minigun',nm:'미니건',ic:'🌪️',g:4,k:'gun',dmg:0.9,cd:0.17,rng:34,price:2e13,shot:'single',ds:'초당 15발 쏟아붓기'}
 ];
 /* 아이템: 사면 가방에 쌓이고 '사용'으로 써요 */
 var ITEMS=[
   {id:'hp',nm:'체력 포션',ic:'🧪',g:0,price:1e6,ds:'던전에서 체력 50% 회복 (던전에서 Q키)'},
   {id:'rage',nm:'분노 물약',ic:'💪',g:1,price:5e7,ds:'5분 동안 던전 공격력 ×2',buff:'dmg',min:5},
-  {id:'goldp',nm:'황금 물약',ic:'💸',g:2,price:1e8,ds:'10분 동안 돈 획득 ×2',buff:'money',min:10},
-  {id:'boltp',nm:'번개 물약',ic:'⚡',g:2,price:1e8,ds:'10분 동안 속도 획득 ×2',buff:'speed',min:10},
-  {id:'feather',nm:'부활 깃털',ic:'🪶',g:3,price:1e9,ds:'던전에서 쓰러지면 자동으로 1번 부활 (가지고만 있으면 돼요)'},
-  {id:'mbox',nm:'수수께끼 상자',ic:'🎁',g:3,price:5e8,ds:'돈·속도·트로피·장신구 중 하나!'}
+  {id:'goldp',nm:'황금 물약',ic:'💸',g:2,price:1e8,ds:'10분 동안 돈 획득 +100%',buff:'money',min:10},
+  {id:'boltp',nm:'번개 물약',ic:'⚡',g:2,price:1e8,ds:'10분 동안 속도 획득 +100%',buff:'speed',min:10},
+  {id:'feather',nm:'부활 깃털',ic:'🪶',g:3,price:1e9,ds:'던전에서 쓰러지면 자동으로 1번 부활 (가지고만 있으면 돼요)'}
 ];
 /* 장신구: 최대 3개 장착 */
 var ACCS=[
@@ -3915,16 +4012,16 @@ var ACCS=[
 ];
 /* 아우라: 1개 장착 · 돈/속도 획득 곱절 */
 var AURAS=[
-  {id:'fire',nm:'불꽃 아우라',ic:'🔥',g:0,price:5e6,col:'#ff7043',speed:1.5,ds:'속도 획득 ×1.5'},
-  {id:'gold',nm:'황금 아우라',ic:'💰',g:1,price:3e7,col:'#ffd54a',money:1.5,ds:'돈 획득 ×1.5'},
-  {id:'frost',nm:'서리 아우라',ic:'❄️',g:2,price:1e9,col:'#80d8ff',speed:2,ds:'속도 획득 ×2'},
-  {id:'dia',nm:'다이아 아우라',ic:'💎',g:2,price:5e9,col:'#b388ff',money:2,ds:'돈 획득 ×2'},
-  {id:'rainbow',nm:'무지개 아우라',ic:'🌈',g:3,price:1e11,col:'rainbow',money:2,speed:2,ds:'돈·속도 획득 ×2'},
-  {id:'galaxy',nm:'은하 아우라',ic:'🌌',g:4,price:5e12,col:'#7c4dff',money:3,speed:3,ds:'돈·속도 획득 ×3'},
-  {id:'god',nm:'신의 아우라',ic:'⚜️',g:4,price:1e14,col:'#ffffff',money:5,speed:5,ds:'돈·속도 획득 ×5'},
+  {id:'fire',nm:'불꽃 아우라',ic:'🔥',g:0,price:5e6,col:'#ff7043',speed:1.2,ds:'속도 획득 +20%'},
+  {id:'gold',nm:'황금 아우라',ic:'💰',g:1,price:3e7,col:'#ffd54a',money:1.2,ds:'돈 획득 +20%'},
+  {id:'frost',nm:'서리 아우라',ic:'❄️',g:2,price:1e9,col:'#80d8ff',speed:1.4,ds:'속도 획득 +40%'},
+  {id:'dia',nm:'다이아 아우라',ic:'💎',g:2,price:5e9,col:'#b388ff',money:1.4,ds:'돈 획득 +40%'},
+  {id:'rainbow',nm:'무지개 아우라',ic:'🌈',g:3,price:1e11,col:'rainbow',money:1.6,speed:1.6,ds:'돈·속도 획득 +60%'},
+  {id:'galaxy',nm:'은하 아우라',ic:'🌌',g:4,price:5e12,col:'#7c4dff',money:2,speed:2,ds:'돈·속도 획득 ×2'},
+  {id:'god',nm:'신의 아우라',ic:'⚜️',g:4,price:1e14,col:'#ffffff',money:3,speed:3,ds:'돈·속도 획득 ×3'},
   /* 이벤트 한정 */
-  {id:'fest',nm:'축제 아우라',ic:'🎉',g:5,coin:20,col:'#ff4081',money:2,speed:2,ds:'[한정] 돈·속도 획득 ×2'},
-  {id:'santa',nm:'산타 아우라',ic:'🎅',g:5,coin:30,xmas:1,col:'#ff1744',money:2.5,speed:2.5,ds:'[크리스마스 한정] 돈·속도 획득 ×2.5'}
+  {id:'fest',nm:'축제 아우라',ic:'🎉',g:5,coin:20,col:'#ff4081',money:1.5,speed:1.5,ds:'[한정] 돈·속도 획득 +50%'},
+  {id:'santa',nm:'산타 아우라',ic:'🎅',g:5,coin:30,xmas:1,col:'#ff1744',money:1.8,speed:1.8,ds:'[크리스마스 한정] 돈·속도 획득 +80%'}
 ];
 /* 퀘스트 → 칭호 (칭호는 1개 장착, 버프) */
 var QUESTS=[
@@ -3950,6 +4047,7 @@ var EV_TITLES=[
   {id:'evmaster',ti:'🎉 이벤트 마스터',coin:40,b:{money:1.15,speed:1.15,dmg:1.15},bd:'[한정] 돈·속도·공격 +15%'},
   {id:'xmastitle',ti:'🎄 크리스마스의 기적',coin:25,xmas:1,b:{money:1.3,speed:1.3},bd:'[크리스마스 한정] 돈·속도 +30%'}
 ];
+[WEAPONS,ITEMS,ACCS,AURAS].forEach(function(L){L.forEach(function(o){if(o.price)o.price=Math.round(o.price*BAL.priceMul);});});
 function findBy(list,id){for(var i=0;i<list.length;i++)if(list[i].id===id)return list[i];return null;}
 /* ---------- 저장 데이터 ---------- */
 function xDefault(){return {wpn:['fist'],wq:'fist',acc:[],acq:[],aur:[],au:'',it:{},ti:[],tq:'',bf:{},coin:0,st:{steal:0,steps:0,boss:0,hard:0,inf:0,raid:0,snatch:0,earned:0,play:0,buys:0},ev:{day:'',gt:-1}};}
@@ -3960,7 +4058,7 @@ G.x=xDefault();
   ['wq','au','tq'].forEach(function(k){if(typeof v[k]==='string')X[k]=v[k];});
   if(X.wpn.indexOf(X.wq)<0)X.wq='fist';if(X.aur.indexOf(X.au)<0)X.au='';if(X.ti.indexOf(X.tq)<0)X.tq='';
   X.acq=X.acq.filter(function(a){return X.acc.indexOf(a)>=0;}).slice(0,3);
-  if(v.it&&typeof v.it==='object')for(var k in v.it)X.it[k]=Math.max(0,v.it[k]|0);
+  if(v.it&&typeof v.it==='object')for(var k in v.it)if(k!=='mbox')X.it[k]=Math.max(0,v.it[k]|0);
   if(v.bf&&typeof v.bf==='object')for(var k2 in v.bf)if(+v.bf[k2]>Date.now())X.bf[k2]=+v.bf[k2];
   X.coin=Math.max(0,+v.coin||0);
   if(v.st&&typeof v.st==='object')for(var k3 in X.st)X.st[k3]=Math.max(0,+v.st[k3]||0);
@@ -3976,12 +4074,19 @@ function gearMul(key){ /* key: money, speed, dmg, hp, move, cd(곱), crit/dr(합
   if(key==='money'||key==='speed'){ap(findBy(AURAS,G.x.au));}
   return v;
 }
+/* 돈·속도 배율은 더하기로 쌓여요 (예: 아우라 ×2 + 칭호 +30% = ×2.3) · 최대 BAL.mulCap */
+function addMul(key){
+  var v=1;function ap(o){if(o&&o[key]!==undefined)v+=o[key]-1;}
+  G.x.acq.forEach(function(id){ap(findBy(ACCS,id));});
+  var t=curTitle();if(t)ap(t.b);ap(findBy(AURAS,G.x.au));
+  return v;
+}
 function goldenTime(){return (new Date().getMinutes()%20)<2;} /* 매 시 0·20·40분부터 2분간 */
 function isWeekend(){var d=new Date().getDay();return d===0||d===6;}
 function isXmas(){var d=new Date(),m=d.getMonth(),dd=d.getDate();return m===11&&dd>=18;} /* 12/18~12/31 */
 function buffOn(k){return (G.x.bf[k]||0)>Date.now();}
-function moneyMul(){return gearMul('money')*(goldenTime()?2:1)*(isWeekend()?1.5:1)*(buffOn('money')?2:1);}
-function speedMul(){return gearMul('speed')*(goldenTime()?2:1)*(buffOn('speed')?2:1);}
+function moneyMul(){return Math.min(BAL.mulCap,addMul('money')+(goldenTime()?0.5:0)+(isWeekend()?0.25:0)+(buffOn('money')?1:0));}
+function speedMul(){return Math.min(BAL.mulCap,addMul('speed')+(goldenTime()?0.5:0)+(buffOn('speed')?1:0));}
 /* 모든 돈·속도 획득은 여기를 거쳐요 */
 function gainMoney(v){v=v*moneyMul();G.money+=v;G.x.st.earned+=v;return v;}
 function gainSpeed(v){v=v*speedMul();G.speed+=v;return v;}
@@ -4041,11 +4146,11 @@ function addCoin(n,why){n=Math.round(n*coinMul());G.x.coin+=n;toast('🎟️ 이
 function eventTick(dt){
   /* 매일 첫 접속 */
   if(G.x.ev.day!==todayKey()){G.x.ev.day=todayKey();
-    var m=gainMoney(Math.max(1e6,income()*600));G.x.it.mbox=(G.x.it.mbox||0)+1;addCoin(3,'매일 접속');
-    lootPopup('🎉 오늘의 접속 보상',['💰 +'+fmt(m),'🎁 수수께끼 상자 1개','🎟️ 이벤트 코인'+(coinMul()>1?' (보너스 ×'+coinMul()+')':'')]);save();}
+    var m=gainMoney(Math.max(1e6,income()*600)*BAL.reward);G.x.it.hp=(G.x.it.hp||0)+2;addCoin(3,'매일 접속');
+    lootPopup('🎉 오늘의 접속 보상',['💰 +'+fmt(m),'🧪 체력 포션 2개','🎟️ 이벤트 코인'+(coinMul()>1?' (보너스 ×'+coinMul()+')':'')]);save();}
   /* 황금 시간: 시작할 때 알림 + 코인 1개 */
   var slot=Math.floor(Date.now()/1200000);
-  if(goldenTime()&&G.x.ev.gt!==slot){G.x.ev.gt=slot;bossBanner('✨ 황금 시간!','2분 동안 돈·속도 획득 ×2','#ffd54a');addCoin(1,'황금 시간');save();}
+  if(goldenTime()&&G.x.ev.gt!==slot){G.x.ev.gt=slot;bossBanner('✨ 황금 시간!','2분 동안 돈·속도 획득 +50%','#ffd54a');addCoin(1,'황금 시간');save();}
   /* 맵에 선물 상자 (2분마다, 경기장에 떨어짐) */
   if(!DG.on){
     if(!evBox){evBoxT-=dt;if(evBoxT<=0){evBoxT=120;
@@ -4057,7 +4162,7 @@ function eventTick(dt){
     else{evBox.rotation.y+=dt*1.5;evBox.position.y=Math.abs(Math.sin(performance.now()/300))*0.6;
       if(Math.random()<dt*10*fxMul)emit(evBox.position.x+rand(-1.5,1.5),rand(1,4),evBox.position.z+rand(-1.5,1.5),0,rand(1,3),0,'#ffd54a',0.8,-1);
       if(Math.hypot(P.x-evBox.position.x,P.z-evBox.position.z)<3.5){
-        scene.remove(evBox);evBox=null;var gm2=gainMoney(Math.max(5e5,income()*120));var lines=['💰 +'+fmt(gm2)];
+        scene.remove(evBox);evBox=null;var gm2=gainMoney(Math.max(5e5,income()*120)*BAL.reward);var lines=['💰 +'+fmt(gm2)];
         lines.push('🎟️ 코인 +'+addCoin(1,'선물 상자'));
         if(Math.random()<0.15){var lim=['evclover','starwing'][Math.floor(Math.random()*2)];if(G.x.acc.indexOf(lim)<0){G.x.acc.push(lim);lines.push('🌟 한정 장신구 획득! '+findBy(ACCS,lim).nm);}}
         lootPopup('🎁 선물 상자',lines);sfx.deposit();save();}
@@ -4070,14 +4175,8 @@ function useItem(id){
   if(id==='hp'){if(!DG.on||DG.over){toast('체력 포션은 던전에서만 써요','warn');return false;}DG.hp=Math.min(DG.max,DG.hp+DG.max*0.5);burst(P.x,3,P.z,'#ff5252',24,7);}
   else if(id==='feather'){toast('부활 깃털은 던전에서 쓰러질 때 자동으로 써져요','warn');return false;}
   else if(it.buff){var base=Math.max(Date.now(),G.x.bf[it.buff]||0);G.x.bf[it.buff]=base+it.min*60000;}
-  else if(id==='mbox'){var r=Math.random(),msg;
-    if(r<0.4)msg='💰 +'+fmt(gainMoney(Math.max(1e7,income()*900)));
-    else if(r<0.7)msg='⚡ 속도 +'+fmt(gainSpeed(G.speed*0.08+100));
-    else if(r<0.9){var p=Math.floor(Math.random()*N);G.counts[p]++;updateExhibit(p);updateHall();msg='🏆 트로피 ['+gradeOf(p).name+'] '+NPCS[p].name;}
-    else{var pool=ACCS.filter(function(a){return !a.coin&&G.x.acc.indexOf(a.id)<0;});if(pool.length){var a=pool[Math.floor(Math.random()*pool.length)];G.x.acc.push(a.id);msg='💍 장신구 '+a.ic+' '+a.nm+'!';}else msg='💰 +'+fmt(gainMoney(Math.max(1e7,income()*900)));}
-    lootPopup('🎁 수수께끼 상자',[msg]);}
   G.x.it[id]--;sfx.buy();save();if(storeOpen)storeRender();
-  if(id!=='mbox')toast(it.ic+' '+it.nm+' 사용!','good');
+  toast(it.ic+' '+it.nm+' 사용!','good');
   if(DG.on)augApply();
   return true;
 }
@@ -4120,7 +4219,7 @@ function storeRender(){
       if(o.coin&&!own)return;
       h+=card(o,eq?'장착 중':'',own?btn('aq',o.id,eq?'빼기':'장착',!eq&&G.x.acq.length>=3):btn('ba',o.id,priceTxt(o),!canPay(o)));});
   }else if(storeTab==='aura'){
-    info='아우라는 1개 장착 · 지금 돈 ×'+(Math.round(moneyMul()*100)/100)+' · 속도 ×'+(Math.round(speedMul()*100)/100)+' (장신구·칭호·이벤트 포함)';
+    info='아우라는 1개 장착 · 배율은 더하기로 쌓이고 최대 ×'+BAL.mulCap+' · 지금 돈 ×'+(Math.round(moneyMul()*100)/100)+' · 속도 ×'+(Math.round(speedMul()*100)/100)+' (장신구·칭호·이벤트 포함)';
     AURAS.forEach(function(o){var own=G.x.aur.indexOf(o.id)>=0,eq=G.x.au===o.id;
       if(o.coin&&!own)return;
       h+=card(o,eq?'장착 중':'',own?btn('uq',o.id,eq?'빼기':'장착'):btn('bu',o.id,priceTxt(o),!canPay(o)));});
@@ -4132,10 +4231,10 @@ function storeRender(){
       h+='<div class="stCard q done"><div class="stIc">🎟️</div><div class="stTx"><b>'+o.ti+'</b> <span class="stTag">'+o.bd+'</span><small>이벤트 한정 칭호</small></div><div class="stBt">'+btn('tq',o.id,eq?'✅ 장착 중':'장착',eq)+'</div></div>';});
   }else if(storeTab==='event'){
     var ev=[];
-    ev.push((goldenTime()?'🟢':'⚪')+' 황금 시간: 매시 0·20·40분부터 2분 동안 돈·속도 ×2'+(goldenTime()?' (지금 진행 중!)':''));
-    ev.push((isWeekend()?'🟢':'⚪')+' 주말 이벤트: 토·일 돈 ×1.5 · 코인 ×2'+(isWeekend()?' (진행 중!)':''));
+    ev.push((goldenTime()?'🟢':'⚪')+' 황금 시간: 매시 0·20·40분부터 2분 동안 돈·속도 +50%'+(goldenTime()?' (지금 진행 중!)':''));
+    ev.push((isWeekend()?'🟢':'⚪')+' 주말 이벤트: 토·일 돈 +25% · 코인 ×2'+(isWeekend()?' (진행 중!)':''));
     ev.push((isXmas()?'🟢':'⚪')+' 크리스마스 이벤트 (12/18~12/31): 코인 ×2 · 산타 아우라 · 크리스마스 칭호'+(isXmas()?' (진행 중!)':''));
-    ev.push('🟢 매일 첫 접속: 돈 + 수수께끼 상자 + 코인 3개');
+    ev.push('🟢 매일 첫 접속: 돈 + 체력 포션 2개 + 코인 3개');
     ev.push('🟢 선물 상자: 2분마다 경기장에 떨어져요 (코인 + 15% 확률로 한정 장신구)');
     ev.push('🟢 보스 처치: 코인 1개 (어려움 2개 · 무한 모드 보스 2개)');
     info='🎟️ 이벤트 코인으로 한정 아이템을 살 수 있어요';
@@ -4191,7 +4290,7 @@ function extrasTick(dt){
   G.x.st.play+=dt;
   if(!DG.on||!DG.over){var au=G.x.au;if(au)auraEmit(P.x,P.y,P.z,au,dt);}
   xT+=dt;if(xT>=1){xT=0;questTick();eventTick(1);if(storeOpen)storeRender();
-    var t=curTitle(),bits=[];if(t)bits.push(t.ti);if(goldenTime())bits.push('✨황금 시간 ×2');if(isWeekend())bits.push('🎉주말 ×1.5');
+    var t=curTitle(),bits=[];if(t)bits.push(t.ti);if(goldenTime())bits.push('✨황금 시간 +50%');if(isWeekend())bits.push('🎉주말 +25%');
     ['dmg','money','speed'].forEach(function(k){if(buffOn(k))bits.push({dmg:'💪',money:'💸',speed:'⚡'}[k]+Math.ceil((G.x.bf[k]-Date.now())/60000)+'분');});
     titleTagEl.textContent=bits.join('  ·  ');}
   if(evBox&&DG.on){}
