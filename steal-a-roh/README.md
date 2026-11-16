@@ -108,6 +108,12 @@ Netlify처럼 서버가 없는 곳에 올렸거나 서버에 연결이 안 되�
 | 보스 종류·패턴·크기·체력 배율 | `BOSS_TYPES` |
 | 보스 체력(고정) | `DG_DIFFS`의 `bossHpFix` |
 | 보스 상자 보상 | `bossChestRoll()` |
+| 무기(공격력·쿨타임·사거리·가격) | `WEAPONS` |
+| 아이템·물약 | `ITEMS` |
+| 장신구 | `ACCS` |
+| 아우라(돈·속도 배율) | `AURAS` |
+| 퀘스트·칭호 | `QUESTS`, `EV_TITLES` |
+| 이벤트(황금 시간·주말·크리스마스·선물 상자) | `goldenTime()`, `isWeekend()`, `isXmas()`, `eventTick()` |
 | 구멍 떨어짐 판정 크기 | `FOOT_R` |
 | 패치노트 (업데이트하면 맨 위에 추가, 버전 `v` 꼭 바꾸기) | `js/patchnotes.js` |
 | 던전 구멍에 떨어질 때 소리 | `js/assets/fall.js` |
