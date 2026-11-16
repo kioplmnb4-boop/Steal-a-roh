@@ -104,5 +104,6 @@ Netlify처럼 서버가 없는 곳에 올렸거나 서버에 연결이 안 되�
 | 한 번에 나오는 잡몹 최대 수 | `MOB_CAP` |
 | 던전 플레이어 체력 | `DG_HP_BASE`, `DG_HP_PER_MEDAL`, `DG_HP_SPEED` |
 | 무한 모드 스테이지 보상 | `dgStageReward()` |
+| 무한 모드 증강 목록·효과·등급 확률 | `AUGS`, `augRollTier()` |
 | 패치노트 (업데이트하면 맨 위에 추가, 버전 `v` 꼭 바꾸기) | `js/patchnotes.js` |
 | 던전 구멍에 떨어질 때 소리 | `js/assets/fall.js` |
