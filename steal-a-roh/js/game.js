@@ -56,7 +56,8 @@ var TREADS=[
    ⚖️ 밸런스 (하드 모드) — 숫자만 바꾸면 게임 전체 난이도가 바뀌어요
    ========================================================= */
 var BAL={
-  income:0.3,        /* 큰 손 수입 배율 (예전 1) */
+  income:0.6,        /* 큰 손 수입 배율 (예전 1 → 0.3 → 0.6) */
+  dgGold:0.4,        /* 던전에서 버는 골드 배율 (몹·보스·상자·스테이지) — 트로피 수입이 쓸모 있게 */
   npcSpeedUp:0.08,   /* 뒤쪽 수호자일수록 더 빠르게: 1 + 순서×0.08 (마지막은 약 4.3배) */
   priceMul:5,        /* 상점(무기·장신구·아우라·아이템) 가격 배율 */
   treadPrice:4,      /* 러닝머신 기본 가격 배율 */
@@ -66,7 +67,7 @@ var BAL={
   offline:0.1,offlineH:4, /* 오프라인 수입 10% · 최대 4시간 (예전 25% · 8시간) */
   bossHp:2.5,        /* 보스 체력 배율 */
   infBossGrow:3,     /* 무한 모드 다음 보스마다 체력 ×3 (예전 ×2.5) */
-  mobHp:4            /* 잡몹 기본 체력 배율 (공격력이 약할 때) */
+  mobHp:2.5          /* 잡몹 기본 체력 배율 (공격력이 약할 때) */
 };
 var SPEED_MIN=8, SPEED_MAX=30000;
 var STEP_SPEED=1; /* 한 걸음 걸을 때마다 오르는 속도 */
@@ -801,8 +802,12 @@ function inviteLink(){return location.href.split('#')[0].split('?')[0]+'?room='+
 /* =========================================================
    Three.js 기본 세팅
    ========================================================= */
-var renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,isTouch?1.5:2));
+var CROWD=[];
+/* 그래픽 품질: 0 낮음 · 1 보통(기본) · 2 높음
+   고해상도 노트북(갤럭시북 3K 등)은 화면 배율이 2라서 해상도를 그대로 쓰면 4배로 무거워져요 → 보통은 최대 1.25배 */
+function gfxRatio(l){var d=window.devicePixelRatio||1;return l===2?Math.min(d,isTouch?1.5:2):l===1?Math.min(d,isTouch?1.25:1.25):Math.min(d,0.85);}
+var renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(gfxRatio(1));
 renderer.setSize(VW(),VH());
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -816,7 +821,7 @@ scene.add(new THREE.AmbientLight(0x8fa3d9,0.65));
 scene.add(new THREE.HemisphereLight(0xcfe0ff,0x1d3a24,0.75));
 var sun=new THREE.DirectionalLight(0xffffff,0.85);
 sun.castShadow=true;
-sun.shadow.mapSize.set(isTouch?1024:2048,isTouch?1024:2048);
+sun.shadow.mapSize.set(1024,1024);
 sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;
 sun.shadow.camera.near=1;sun.shadow.camera.far=300;
 sun.shadow.bias=-0.0006;
@@ -1005,6 +1010,7 @@ var crowdTime={value:0};
   wiggle(bm);wiggle(hm);
   var bodies=new THREE.InstancedMesh(new THREE.BoxGeometry(0.6,1.3,1.0),bm,persons.length);
   var heads=new THREE.InstancedMesh(new THREE.BoxGeometry(0.8,0.8,0.8),hm,persons.length);
+  CROWD=[bodies,heads];
   var d=new THREE.Object3D(),c=new THREE.Color();
   persons.forEach(function(p,i){
     d.position.set(p[0],p[1]+0.65,p[2]);d.updateMatrix();bodies.setMatrixAt(i,d.matrix);
@@ -2586,9 +2592,9 @@ function dgDmg(){return Math.round((10+medals()*4)*Math.max(1,G.speed*DG_DMG_PER
 /* mob: 잡몹 수 배율 · mobHits: 던전 안 최고 공격력으로 잡몹을 몇 대 때려야 죽는지 · bossHpFix: 보스 체력(고정)
    (공격력이 아무리 세도 원콤이 안 되게 체력이 공격력을 따라 커져요) */
 var DG_DIFFS=[
-  {name:'쉬움',ico:'🟢',col:'#66bb6a',mob:1.0,mobHits:3,mobDmg:0.8,bossHpFix:5e6,bossDmg:0.7,atk:1.2,rip:1.3,reward:0.5,chest:1,desc:'잡몹 ×1 · 보스 체력 1,250만 · 보상 ×0.5'},
-  {name:'보통',ico:'🟡',col:'#ffca28',mob:1.7,mobHits:6,mobDmg:1.1,bossHpFix:3e7,bossDmg:1.2,atk:1,rip:1,reward:1,chest:2,desc:'잡몹 ×1.7 · 보스 체력 7,500만 · 보상 ×1'},
-  {name:'어려움',ico:'🔴',col:'#ef5350',mob:3,mobHits:12,mobDmg:1.8,bossHpFix:1.5e8,bossDmg:2.5,atk:0.65,rip:0.6,reward:3,chest:3,desc:'잡몹 ×3 (몹 12대) · 보스 체력 3.75억 · 보스 공격 ×2.5 · 보상 ×3'},
+  {name:'쉬움',ico:'🟢',col:'#66bb6a',mob:1.0,mobHits:2,mobDmg:0.8,bossHpFix:5e6,bossDmg:0.7,atk:1.2,rip:1.3,reward:0.5,chest:1,desc:'잡몹 ×1 · 보스 체력 1,250만 · 보상 ×0.5'},
+  {name:'보통',ico:'🟡',col:'#ffca28',mob:1.7,mobHits:4,mobDmg:1.1,bossHpFix:3e7,bossDmg:1.2,atk:1,rip:1,reward:1,chest:2,desc:'잡몹 ×1.7 · 보스 체력 7,500만 · 보상 ×1'},
+  {name:'어려움',ico:'🔴',col:'#ef5350',mob:3,mobHits:8,mobDmg:1.8,bossHpFix:1.5e8,bossDmg:2.5,atk:0.65,rip:0.6,reward:3,chest:3,desc:'잡몹 ×3 (몹 8대) · 보스 체력 3.75억 · 보스 공격 ×2.5 · 보상 ×3'},
   {name:'무한',ico:'♾️',col:'#b36bff',inf:1,reward:1,chest:2,desc:'끝없는 스테이지 · 10스테이지마다 보스 (첫 보스 = 어려움 3.75억, 다음 보스마다 ×3) · 깬 스테이지만큼 골드·속도'}
 ];
 var MOB_CAP=60; /* 한 번에 나와 있는 잡몹 최대 수 (나머지는 잡을 때마다 이어서 나와요) */
@@ -2731,7 +2737,7 @@ function startWave(w){
   while(DG.q.length&&DG.mobs.length<MOB_CAP)spawnMob(DG.q.shift());
   dgToast(df.inf?'♾️ 스테이지 '+w+' 시작! (잡몹 '+list.length+'마리)':'⚔️ 웨이브 '+w+'/3 시작! ('+df.ico+' '+df.name+' · 잡몹 '+list.length+'마리)','warn');
 }
-function mobDeadFx(x,z,col){burst(x,2,z,col,18,8);burst(x,2,z,'#ffffff',8,6);if(DG.on)gainMoney(Math.round((income()+20)*3*BAL.reward));if(DG.on&&DG.S.killHeal&&Math.hypot(x-P.x,z-P.z)<22)augHeal(DG.S.killHeal);}
+function mobDeadFx(x,z,col){burst(x,2,z,col,18,8);burst(x,2,z,'#ffffff',8,6);if(DG.on)gainMoney(Math.round((income()+20)*3*BAL.reward*BAL.dgGold));if(DG.on&&DG.S.killHeal&&Math.hypot(x-P.x,z-P.z)<22)augHeal(DG.S.killHeal);}
 function killMob(o){
   var i=DG.mobs.indexOf(o);if(i>=0)DG.mobs.splice(i,1);scene.remove(o.g);
   var p=o.g.position;mobDeadFx(p.x,p.z,o.col);
@@ -2891,7 +2897,7 @@ function dgStageClear(st,boss){bcast({t:'dgst',s:st,b:boss?1:0});dgStageReward(s
 function dgStageReward(st,boss){
   if(!DG.on||DG.over)return;
   var mul=boss?5:1;
-  var gold=Math.round((income()*8+20000)*st*mul*DG.S.gold*BAL.reward);
+  var gold=Math.round((income()*8+20000)*st*mul*DG.S.gold*BAL.reward*BAL.dgGold);
   var spd=Math.round((G.speed*0.004+25)*st*mul*DG.S.spdRw*BAL.reward);
   gainMoney(gold);gainSpeed(spd);DG.runSt=Math.max(DG.runSt,st);G.x.st.inf=Math.max(G.x.st.inf,st);
   if(st>infBest){infBest=st;try{localStorage.setItem(INF_KEY,String(st));}catch(e){}}
@@ -2911,7 +2917,7 @@ function bossDeadFx(x,z,mvp,lh,v,nPl){
   bossBanner('👑 BOSS DOWN!',bt.nm+' 격파'+(isMvp?' · 🏅 MVP':'')+(isLh?' · 🗡️ 막타':''),'#ffd54a');
   var lines=[];
   if(!inf){ /* 일반 던전: 큰 보상 + 속도 */
-    var m=medals(),rw=Math.round((income()*900+1500000)*(1+m*0.25)*df.reward*(isMvp?1.5:1)*BAL.reward);
+    var rw=Math.round((income()*300+1500000)*df.reward*(isMvp?1.5:1)*BAL.reward*BAL.dgGold); /* 메달 수 배율 제거 */
     var sp=Math.round((G.speed*0.08*df.reward*(isMvp?1.5:1)+100)*BAL.reward);
     gainMoney(rw);gainSpeed(sp);lines.push('💰 보스 보상 +'+fmt(rw),'⚡ 속도 +'+fmt(sp));
   }
@@ -2929,7 +2935,7 @@ function bossDeadFx(x,z,mvp,lh,v,nPl){
 /* 보스 상자 한 칸: 골드 대박 / 속도 / 트로피(높은 등급일수록 드묾) */
 function bossChestRoll(mul){
   var r=Math.random();
-  if(r<0.45){var g=Math.round((income()*240+400000)*rand(1,3)*Math.max(0.5,mul)*BAL.reward);gainMoney(g);return '💰 골드 주머니 +'+fmt(g);}
+  if(r<0.45){var g=Math.round((income()*240+400000)*rand(1,3)*Math.max(0.5,mul)*BAL.reward*BAL.dgGold);gainMoney(g);return '💰 골드 주머니 +'+fmt(g);}
   if(r<0.75){var s=Math.round((G.speed*rand(0.04,0.1)*Math.max(0.5,mul)+50)*BAL.reward);gainSpeed(s);return '⚡ 속도 물약 +'+fmt(s);}
   var tot=0,i;for(i=0;i<N;i++)tot+=1/(i+1);var x=Math.random()*tot,pick=0;for(i=0;i<N;i++){x-=1/(i+1);if(x<=0){pick=i;break;}}
   G.counts[pick]++;updateExhibit(pick);updateHall();
@@ -3980,17 +3986,21 @@ $('startBtn').addEventListener('click',function(){
   if(isTouch&&!isPhone&&!rotHint&&innerHeight>innerWidth*1.1){rotHint=true;setTimeout(function(){toast('📱 가로로 돌리면 더 넓게 보여요!','warn');},1200);}
 });
 
+var gfx=1;
 function setFx(l,auto){
-  fxLevel=l;fxMul=l?1:0.3;
-  renderer.setPixelRatio(l?Math.min(window.devicePixelRatio||1,isTouch?1.5:2):1);renderer.setSize(VW(),VH());
-  sun.castShadow=!!l;
+  gfx=l;fxLevel=l?1:0;fxMul=l===2?1:l===1?0.8:0.3;
+  renderer.setPixelRatio(gfxRatio(l));renderer.setSize(VW(),VH());
+  sun.castShadow=l>0;
+  var ms=l===2?(isTouch?1024:2048):1024;
+  if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
+  CROWD.forEach(function(m){m.visible=l>0;}); /* 낮음: 관중 숨기기 (1만 명 넘게 그리지 않아요) */
   fxList.forEach(function(f){if(f.ring)f.ring.visible=!!l;f.stars.forEach(function(x){x.visible=!!l;});if(f.halo)f.halo.visible=!!l;});
-  $('fxBtn').textContent=l?'✨ 이펙트: 보통':'✨ 이펙트: 최소';
-  if(auto)toast('📉 화면이 버벅여서 이펙트를 줄였어요 (왼쪽 ✨ 버튼으로 되돌릴 수 있어요)','warn');
-  else{try{localStorage.setItem('steal-a-roh-fx',l?'1':'0');}catch(e){}}
+  $('fxBtn').textContent='🖥️ 그래픽: '+['낮음','보통','높음'][l];
+  if(auto)toast('📉 화면이 버벅여서 그래픽을 「'+['낮음','보통','높음'][l]+'」으로 낮췄어요 (왼쪽 🖥️ 버튼으로 바꿀 수 있어요)','warn');
+  else{try{localStorage.setItem('steal-a-roh-fx',String(l));}catch(e){}}
 }
-$('fxBtn').addEventListener('click',function(){setFx(fxLevel?0:1,false);});
-try{if(localStorage.getItem('steal-a-roh-fx')==='0')setFx(0,false);}catch(e){}
+$('fxBtn').addEventListener('click',function(){setFx((gfx+2)%3,false);}); /* 보통 → 낮음 → 높음 → 보통 */
+try{var sf=localStorage.getItem('steal-a-roh-fx');setFx(sf==='0'?0:sf==='2'?2:1,false);}catch(e){setFx(1,false);}
 var lowT=0,emaDt=1/60;
 var last=performance.now(),clock=0;
 /* =========================================================
@@ -4005,6 +4015,7 @@ var WEAPONS=[
   {id:'bat',nm:'야구 방망이',ic:'🏏',g:0,k:'melee',dmg:1.2,cd:1.1,rng:1.05,price:1e4,ds:'묵직한 한 방'},
   {id:'pistol',nm:'권총',ic:'🔫',g:0,k:'gun',dmg:0.9,cd:0.95,rng:30,price:1e5,shot:'single',ds:'가까운 적 1명 자동 조준'},
   {id:'sword',nm:'강철 검',ic:'🗡️',g:1,k:'melee',dmg:1.6,cd:0.95,rng:1.15,price:1e6,ds:'빠르고 넓은 베기'},
+  {id:'blood',nm:'피의 계약검',ic:'🩸',g:2,k:'melee',dmg:1.95,cd:0.95,rng:1.15,inv:0.5,price:5e7,ds:'⚠️ 맞은 뒤 무적 시간 -50% · 대신 강철 검보다 공격력 +22%'},
   {id:'smg',nm:'기관단총',ic:'💨',g:1,k:'gun',dmg:0.45,cd:0.42,rng:26,price:1e7,shot:'single',ds:'엄청 빠른 연사'},
   {id:'shotgun',nm:'샷건',ic:'💥',g:2,k:'gun',dmg:1.1,cd:1.5,rng:18,price:1e8,shot:'spread',n:4,ds:'가까운 적 4명에게 동시에'},
   {id:'hammer',nm:'거대 망치',ic:'🔨',g:2,k:'melee',dmg:3.2,cd:1.9,rng:1.4,price:1e9,ds:'느리지만 엄청 아프고 넓음'},
@@ -4122,6 +4133,7 @@ function gainSpeed(v){v=v*speedMul();G.speed+=v;return v;}
 function gearDungeon(S){
   S.dmg*=gearMul('dmg')*(buffOn('dmg')?2:1);S.hp*=gearMul('hp');S.cd*=gearMul('cd');S.crit+=gearMul('crit');S.dr+=gearMul('dr');S.move*=gearMul('move');
   var w=curWeapon();if(w.k==='melee'){S.dmg*=w.dmg;S.cd*=w.cd;S.range*=w.rng;}
+  if(w.inv)S.inv*=w.inv; /* 무적 시간 배율 (피의 계약검: 0.5) */
 }
 function curWeapon(){return findBy(WEAPONS,G.x.wq)||WEAPONS[0];}
 /* ---------- 총 쏘기 ---------- */
@@ -4243,7 +4255,7 @@ function storeRender(){
   }else if(storeTab==='wpn'){
     var w=curWeapon();info='들고 있는 무기: '+w.ic+' '+w.nm+' · 던전에서 [E]로 공격 · 총은 가까운 적을 자동 조준해요';
     WEAPONS.forEach(function(o){var own=G.x.wpn.indexOf(o.id)>=0,eq=G.x.wq===o.id;
-      var st='공격 ×'+o.dmg+' · 속도 '+(o.cd<1?'빠름':o.cd>1.2?'느림':'보통')+'('+(Math.round(0.38*o.cd*100)/100)+'초) · '+(o.k==='gun'?'사거리 '+o.rng:'범위 ×'+o.rng);
+      var st=(o.inv?'무적 시간 ×'+o.inv+' · ':'')+'공격 ×'+o.dmg+' · 속도 '+(o.cd<1?'빠름':o.cd>1.2?'느림':'보통')+'('+(Math.round(0.38*o.cd*100)/100)+'초) · '+(o.k==='gun'?'사거리 '+o.rng:'범위 ×'+o.rng);
       h+=card({ic:o.ic,nm:o.nm,g:o.g,ds:o.ds+'<br>'+st},o.k==='gun'?'🔫 총':'🗡️ 근접',own?btn('wq',o.id,eq?'✅ 장착 중':'장착',eq):btn('bw',o.id,priceTxt(o),!canPay(o)));});
   }else if(storeTab==='item'){
     var bl=[];['dmg','money','speed'].forEach(function(k){if(buffOn(k))bl.push({dmg:'💪 공격 ×2',money:'💸 돈 ×2',speed:'⚡ 속도 ×2'}[k]+' '+Math.ceil((G.x.bf[k]-Date.now())/60000)+'분');});
@@ -4443,10 +4455,10 @@ function loop(now){
   var dt=Math.min(0.05,raw);last=now;
   if(tsT>0){tsT-=dt;dt*=TSCALE;if(tsT<=0)TSCALE=1;}
   clock+=dt;
-  if(started&&clock>6&&fxLevel&&!document.hidden){
+  if(started&&clock>6&&gfx>0&&!document.hidden){
     emaDt=emaDt*0.95+Math.min(raw,0.25)*0.05;
-    if(emaDt>1/30)lowT+=raw;else lowT=Math.max(0,lowT-raw);
-    if(lowT>5){lowT=0;setFx(0,true);}
+    if(emaDt>1/40)lowT+=raw;else lowT=Math.max(0,lowT-raw*0.5); /* 40fps 아래로 4초 → 한 단계 낮추기 */
+    if(lowT>4){lowT=0;emaDt=1/60;setFx(gfx-1,true);}
   }
   crowdTime.value=clock;
   if(started){update(dt,clock);netTick(dt);}
