@@ -105,5 +105,9 @@ Netlify처럼 서버가 없는 곳에 올렸거나 서버에 연결이 안 되�
 | 던전 플레이어 체력 | `DG_HP_BASE`, `DG_HP_PER_MEDAL`, `DG_HP_SPEED` |
 | 무한 모드 스테이지 보상 | `dgStageReward()` |
 | 무한 모드 증강 목록·효과·등급 확률 | `AUGS`, `augRollTier()` |
+| 보스 종류·패턴·크기·체력 배율 | `BOSS_TYPES` |
+| 보스 체력(고정) | `DG_DIFFS`의 `bossHpFix` |
+| 보스 상자 보상 | `bossChestRoll()` |
+| 구멍 떨어짐 판정 크기 | `FOOT_R` |
 | 패치노트 (업데이트하면 맨 위에 추가, 버전 `v` 꼭 바꾸기) | `js/patchnotes.js` |
 | 던전 구멍에 떨어질 때 소리 | `js/assets/fall.js` |
