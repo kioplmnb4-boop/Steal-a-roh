@@ -106,5 +106,149 @@
   "w": 311,
   "h": 380,
   "file": "assets/npc/17.webp"
+ },
+ {
+  "name": "급식무현",
+  "w": 247,
+  "h": 246,
+  "file": "assets/npc/18.webp"
+ },
+ {
+  "name": "노기영",
+  "w": 372,
+  "h": 380,
+  "file": "assets/npc/19.webp"
+ },
+ {
+  "name": "노깨비",
+  "w": 205,
+  "h": 237,
+  "file": "assets/npc/20.webp"
+ },
+ {
+  "name": "노끼",
+  "w": 325,
+  "h": 380,
+  "file": "assets/npc/21.webp"
+ },
+ {
+  "name": "노다이",
+  "w": 382,
+  "h": 380,
+  "file": "assets/npc/22.webp"
+ },
+ {
+  "name": "노럼프",
+  "w": 335,
+  "h": 380,
+  "file": "assets/npc/23.webp"
+ },
+ {
+  "name": "노리링",
+  "w": 336,
+  "h": 380,
+  "file": "assets/npc/24.webp"
+ },
+ {
+  "name": "노센치",
+  "w": 297,
+  "h": 229,
+  "file": "assets/npc/25.webp"
+ },
+ {
+  "name": "노수님",
+  "w": 214,
+  "h": 280,
+  "file": "assets/npc/26.webp"
+ },
+ {
+  "name": "노오오오",
+  "w": 380,
+  "h": 274,
+  "file": "assets/npc/27.webp"
+ },
+ {
+  "name": "노정은",
+  "w": 314,
+  "h": 380,
+  "file": "assets/npc/28.webp"
+ },
+ {
+  "name": "노쿠르트",
+  "w": 205,
+  "h": 238,
+  "file": "assets/npc/29.webp"
+ },
+ {
+  "name": "노트라맨",
+  "w": 316,
+  "h": 380,
+  "file": "assets/npc/30.webp"
+ },
+ {
+  "name": "노트릭슨",
+  "w": 319,
+  "h": 380,
+  "file": "assets/npc/31.webp"
+ },
+ {
+  "name": "노틸러",
+  "w": 336,
+  "h": 380,
+  "file": "assets/npc/32.webp"
+ },
+ {
+  "name": "노파룸파",
+  "w": 363,
+  "h": 380,
+  "file": "assets/npc/33.webp"
+ },
+ {
+  "name": "노홍만",
+  "w": 318,
+  "h": 380,
+  "file": "assets/npc/34.webp"
+ },
+ {
+  "name": "닥터 노트레인지",
+  "w": 274,
+  "h": 380,
+  "file": "assets/npc/35.webp"
+ },
+ {
+  "name": "분노",
+  "w": 245,
+  "h": 245,
+  "file": "assets/npc/36.webp"
+ },
+ {
+  "name": "아이스크림 노무현",
+  "w": 270,
+  "h": 380,
+  "file": "assets/npc/37.webp"
+ },
+ {
+  "name": "아이언 노",
+  "w": 220,
+  "h": 380,
+  "file": "assets/npc/38.webp"
+ },
+ {
+  "name": "원주민 노무현",
+  "w": 288,
+  "h": 380,
+  "file": "assets/npc/39.webp"
+ },
+ {
+  "name": "철수 노무현",
+  "w": 348,
+  "h": 380,
+  "file": "assets/npc/40.webp"
+ },
+ {
+  "name": "춤추는 노무현",
+  "w": 332,
+  "h": 380,
+  "file": "assets/npc/41.webp"
  }
 ]
