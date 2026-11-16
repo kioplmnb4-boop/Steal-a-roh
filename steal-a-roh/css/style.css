@@ -212,6 +212,13 @@ body.short #mpModal h3{margin-bottom:6px;font-size:16px}
 body.inroom #chatBtn{display:block}
 body.touch #chatBox{left:calc(8px + var(--sal));bottom:auto;top:calc(var(--vh)*30);width:min(320px,calc(var(--vw)*55))}
 body.touch #chatLog{font-size:12.5px}
-body.touch #chatBtn{left:auto;bottom:auto;right:calc(8px + var(--sar));top:calc(112px + var(--sat));padding:9px 12px;font-size:14px}
+body.touch #chatBtn{bottom:auto;left:calc(8px + var(--sal));top:calc(var(--vh)*30 - 44px);padding:8px 12px;font-size:14px}
 #verTag{position:fixed;right:8px;bottom:4px;z-index:5;font-size:10.5px;color:rgba(255,255,255,.45);pointer-events:none}
 body.touch #verTag{bottom:calc(2px + var(--sab));right:calc(6px + var(--sar))}
+
+/* ---------- 🎄 크리스마스 버튼 ---------- */
+#xmasBtn{position:fixed;left:10px;top:290px;z-index:12;background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:6px 12px;font-size:13px;cursor:pointer;touch-action:manipulation}
+#xmasBtn.on{background:rgba(198,40,40,.75);border-color:#ffcdd2;box-shadow:0 0 10px rgba(255,82,82,.7)}
+body.touch #xmasBtn{display:none;left:auto;right:calc(8px + var(--sar));top:calc(244px + var(--sat));z-index:25;min-width:150px;padding:10px 14px;font-size:14px;text-align:left;background:rgba(10,20,40,.92)}
+body.touch #xmasBtn.on{background:rgba(198,40,40,.9)}
+body.touch.menu #xmasBtn{display:block}

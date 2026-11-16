@@ -514,6 +514,7 @@ function onClientMsg(m){
       if(DG.boss){scene.remove(DG.boss.g);DG.boss=null;}
       bossDeadFx(m.x,m.z);break;
     case 'dgt':if(DG.on)toast(m.m,m.c);break;
+    case 'dgst':dgStageReward(m.s|0,!!m.b);break;
     case 'bs':
       if(!m.id||m.id===NET.my)break;
       n=getRem(m.id);n.bc=nArr(m.c,N);n.bq=nArr(m.q,TREADS.length);break;
@@ -526,8 +527,8 @@ function applyState(r,m,fromHostView){
   var now=performance.now();
   if(r.lt){var d=(now-r.lt)/1000;if(d>0.02){r.vx+=((m.x-r.lx)/d-r.vx)*0.5;r.vz+=((m.z-r.lz)/d-r.vz)*0.5;}}
   r.lx=m.x;r.lz=m.z;r.lt=now;
-  r.tx=+m.x||0;r.ty=+m.y||0;r.tz=+m.z||0;r.f=+m.f||0;r.vc=m.c|0;r.stun=m.s?1:0;r.skin=(m.k|0);r.mv=m.m?1:0;
-  if(r.skin<-1||r.skin>2)r.skin=-1;
+  r.dd=Math.max(0,+m.dd||0);r.tx=+m.x||0;r.ty=+m.y||0;r.tz=+m.z||0;r.f=+m.f||0;r.vc=m.c|0;r.stun=m.s?1:0;r.skin=(m.k|0);r.mv=m.m?1:0;
+  if(r.skin!==99&&(r.skin<-1||r.skin>2))r.skin=-1; /* 99 = 크리스마스 산타 */
   if(m.n!==undefined)r.name=String(m.n||'친구').slice(0,10);
   if(!r.init){r.x=r.tx;r.y=r.ty;r.z=r.tz;r.init=1;}
   if(!r.announced&&r.name){r.announced=1;toast('👋 '+r.name+' 님이 들어왔어요!','good');netUI();}
@@ -541,15 +542,15 @@ function applyState(r,m,fromHostView){
 var ST_CODE={sleep:0,chase:1,charge:2,'return':3},ST_NAME=['sleep','chase','charge','return'];
 function netSendState(){
   if(NET.mode!=='client')return;
-  sendHost({t:'st',x:r2(P.x),y:r2(P.y),z:r2(P.z),f:r2(P.face),c:P.carry,s:P.stun>0?1:0,k:G.skin,d:DG.on?1:0,df:DG.myDf,m:P.mv?1:0,n:NET.name});
+  sendHost({t:'st',x:r2(P.x),y:r2(P.y),z:r2(P.z),f:r2(P.face),c:P.carry,s:P.stun>0?1:0,k:netSkin(),d:DG.on?1:0,df:DG.myDf,dd:DG.on?dgDmg():0,m:P.mv?1:0,n:NET.name});
 }
 function buildSnap(){
-  var pl=[[NET.my,NET.name,r2(P.x),r2(P.y),r2(P.z),r2(P.face),P.carry,P.stun>0?1:0,G.skin,DG.on?1:0,P.mv?1:0,mySlot]];
+  var pl=[[NET.my,NET.name,r2(P.x),r2(P.y),r2(P.z),r2(P.face),P.carry,P.stun>0?1:0,netSkin(),DG.on?1:0,P.mv?1:0,mySlot]];
   for(var id in REM){var r=REM[id];if(r.init)pl.push([id,r.name,r2(r.tx),r2(r.ty),r2(r.tz),r.f,r.vc,r.stun,r.skin,r.dg,r.mv,r.slot]);}
   var np=npcs.map(function(n){var p=n.ch.root.position;return [r1(p.x),r1(p.z),ST_CODE[n.state],n.tg||0,n.ped.has?1:0];});
   var dg=0;
   if(DG.act){
-    dg={df:DG.df,w:DG.wave,m:DG.mobs.map(function(o){return [o.id,o.t,r1(o.g.position.x),r1(o.g.position.z),o.hp,o.max];}),b:0};
+    dg={df:DG.df,q:DG.q.length,w:DG.wave,m:DG.mobs.map(function(o){return [o.id,o.t,r1(o.g.position.x),r1(o.g.position.z),o.hp,o.max];}),b:0};
     var b=DG.boss;if(b)dg.b=[r1(b.g.position.x),r1(b.g.position.z),Math.round(b.hp),b.max,b.rage,b.dash>0?1:0,b.wind>0?1:0,b.flash>0?1:0];
   }
   return {t:'snap',pl:pl,np:np,dg:dg};
@@ -573,7 +574,7 @@ function applySnap(m){
   });
   var dg=m.dg;
   if(dg){
-    DG.act=true;DG.wave=dg.w;if(dg.df===0||dg.df===1||dg.df===2)DG.df=dg.df;
+    DG.act=true;DG.wave=dg.w;DG.qn=dg.q|0;if(dgDfOk(dg.df))DG.df=dg.df;
     var ids={};
     dg.m.forEach(function(a){
       ids[a[0]]=1;var o=null;
@@ -619,7 +620,8 @@ function getRem(id){
 function remSet(r,skin){
   if(r.sets[skin])return r.sets[skin];
   var ch;
-  if(skin>=0&&window.__SKINIMG__){var o=Object.assign({},SKINS[skin].o);o.face=window.__SKINIMG__[skin];ch=makePlayerChar(o);}
+  if(skin===99&&window.__XMASIMG__)ch=makePlayerChar({skin:'#f0c9a6',hair:'#c62828',suit:'#c62828',stripe:'#e04848',shirt:'#ffffff',collar:'#ffffff',tie:'#1b5e20',knot:'#124a18',face:window.__XMASIMG__});
+  else if(skin>=0&&skin<SKINS.length&&window.__SKINIMG__){var o=Object.assign({},SKINS[skin].o);o.face=window.__SKINIMG__[skin];ch=makePlayerChar(o);}
   else ch=makePlayerChar();
   ch.root.visible=false;scene.add(ch.root);
   return r.sets[skin]=ch;
@@ -1225,16 +1227,18 @@ function initAudio(){
     loadDepositSound();
   }catch(e){AC=null;}
 }
-var depositBuf=null,caughtBuf=null,cryBuf=null,bgmBuf=null,bgmGain=null,bgmSrc=null,bgmMuted=false,BGM_VOL=0.32;
+var depositBuf=null,caughtBuf=null,cryBuf=null,bgmBuf=null,bgmGain=null,bgmSrc=null,bgmMuted=false,BGM_VOL=0.32,xmasOn=false,xmasAudio=null,XMAS_VOL=0.5,xmasPlaying=false,xmasBuf=null,xmasSrc=null,xmasGain=null,xmasLoading=false;
 try{bgmMuted=localStorage.getItem('steal-a-roh-bgm-muted')==='1';}catch(e){}
 function startBgm(){
   if(!AC||!bgmBuf||bgmSrc)return;
-  bgmGain=AC.createGain();bgmGain.gain.value=bgmMuted?0:BGM_VOL;bgmGain.connect(AC.destination);
+  bgmGain=AC.createGain();bgmGain.gain.value=bgmLevel();bgmGain.connect(AC.destination);
   bgmSrc=AC.createBufferSource();bgmSrc.buffer=bgmBuf;bgmSrc.loop=true;bgmSrc.connect(bgmGain);bgmSrc.start();
 }
 function setBgmMuted(m){
   bgmMuted=m;
-  if(bgmGain)bgmGain.gain.value=m?0:BGM_VOL;
+  if(bgmGain)bgmGain.gain.value=bgmLevel();
+  if(xmasGain)xmasGain.gain.value=m?0:XMAS_VOL;
+  if(xmasAudio)xmasAudio.volume=m?0:XMAS_VOL;
   var b=document.getElementById('muteBtn');if(b)b.textContent=m?'🔇 BGM 꺼짐':'🔊 BGM';
   try{localStorage.setItem('steal-a-roh-bgm-muted',m?'1':'0');}catch(e){}
 }
@@ -2227,14 +2231,151 @@ function buildSet(o,face){
 }
 var baseSet={ch:pChar,tr:holdTrophies};
 SKINS.forEach(function(s,i){s.set=buildSet(s.o,window.__SKINIMG__[i]);});
+/* ---------- 🎄 크리스마스 모드: 산타 블록 캐릭터 + 캐럴 BGM ---------- */
+var XMAS_SET=null;
+if(window.__XMASIMG__)XMAS_SET=buildSet({skin:'#f0c9a6',hair:'#c62828',suit:'#c62828',stripe:'#e04848',shirt:'#ffffff',collar:'#ffffff',tie:'#1b5e20',knot:'#124a18'},window.__XMASIMG__);
+function bgmLevel(){return (bgmMuted||xmasPlaying)?0:BGM_VOL;}
+var xmasWait=false;
+function xmasWaitGesture(){
+  if(xmasWait)return;xmasWait=true;
+  var ev=['pointerup','touchend','click','keydown'];
+  var f=function(){
+    if(!xmasOn||!xmasAudio){ev.forEach(function(e){removeEventListener(e,f,true);});xmasWait=false;return;}
+    var p=xmasAudio.play();
+    if(p&&p.then)p.then(function(){ev.forEach(function(e){removeEventListener(e,f,true);});xmasWait=false;xmasPlaying=true;if(bgmGain)bgmGain.gain.value=bgmLevel();}).catch(function(){});
+  };
+  ev.forEach(function(e){addEventListener(e,f,true);});
+}
+/* 1순위: 기본 BGM과 같은 WebAudio 방식으로 재생 */
+function xmasStopWA(){
+  if(xmasSrc){try{xmasSrc.stop();}catch(e){}try{xmasSrc.disconnect();}catch(e){}xmasSrc=null;}
+}
+function xmasStartWA(){
+  if(!AC||!xmasBuf||xmasSrc||!xmasOn)return;
+  try{
+    if(AC.state==='suspended')AC.resume();
+    if(!xmasGain){xmasGain=AC.createGain();xmasGain.connect(AC.destination);}
+    xmasGain.gain.value=bgmMuted?0:XMAS_VOL;
+    xmasSrc=AC.createBufferSource();xmasSrc.buffer=xmasBuf;xmasSrc.loop=true;xmasSrc.connect(xmasGain);xmasSrc.start();
+    xmasPlaying=true;if(bgmGain)bgmGain.gain.value=bgmLevel();
+    if(started)toast('🎶 캐럴 시작!','good');
+  }catch(e){xmasSrc=null;xmasElem();}
+}
+function xmasLoad(){
+  if(xmasBuf||xmasLoading||!window.__XMAS__)return;
+  xmasLoading=true;
+  if(started)toast('🎄 캐럴 불러오는 중... (잠깐만요)','good');
+  var ok=function(buf){xmasLoading=false;xmasBuf=buf;xmasStartWA();};
+  var fail=function(){xmasLoading=false;xmasElem();};
+  try{
+    var bin=atob(window.__XMAS__.split(',')[1]),u=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    var p=AC.decodeAudioData(u.buffer,ok,fail);
+    if(p&&p.catch)p.catch(function(){});
+  }catch(e){fail();}
+}
+/* 2순위: WebAudio 디코딩이 안 될 때 <audio> 로 재생 */
+function xmasElem(){
+  if(!xmasOn)return;
+  if(!xmasAudio&&window.__XMAS__){
+    try{
+      var bin=atob(window.__XMAS__.split(',')[1]),u=new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+      xmasAudio=new Audio(URL.createObjectURL(new Blob([u],{type:'audio/mpeg'})));
+    }catch(e){try{xmasAudio=new Audio(window.__XMAS__);}catch(e2){xmasAudio=null;}}
+    if(xmasAudio){
+      xmasAudio.loop=true;xmasAudio.preload='auto';
+      xmasAudio.addEventListener('error',function(){
+        if(!xmasAudio||xmasAudio._fb){if(started&&xmasOn)toast('🎄 캐럴을 재생하지 못했어요 (이 브라우저에서 막힘)','bad');return;}
+        xmasAudio._fb=1;xmasAudio.src=window.__XMAS__;
+        if(xmasOn)xmasAudio.play().catch(function(){});
+      });
+    }
+  }
+  if(!xmasAudio){if(started)toast('🎄 캐럴을 재생하지 못했어요','bad');return;}
+  xmasAudio.volume=bgmMuted?0:XMAS_VOL;
+  var p=xmasAudio.play();
+  if(p&&p.then)p.then(function(){if(xmasOn){xmasPlaying=true;if(bgmGain)bgmGain.gain.value=bgmLevel();}});
+  if(p&&p.catch)p.catch(function(err){
+    if(err&&err.name==='NotAllowedError'){
+      xmasWaitGesture();
+      if(started)toast('🎄 브라우저가 소리를 막았어요 — 화면을 한 번 누르면 캐럴이 시작돼요','warn');
+    }
+  });
+}
+function xmasMusic(on){
+  if(on){
+    if(AC){if(xmasBuf)xmasStartWA();else xmasLoad();}
+    else if(started)xmasElem();
+  }else{
+    xmasStopWA();if(xmasAudio)xmasAudio.pause();
+    xmasPlaying=false;
+  }
+  if(bgmGain)bgmGain.gain.value=bgmLevel();
+}
+/* ---------- ❄️ 눈 오는 효과 (크리스마스 모드에서 켜짐) ---------- */
+var snowCv=null,snowCtx=null,snowOn=false,snowFl=[],snowRaf=0,snowLast=0;
+function snowSize(){if(!snowCv)return;snowCv.width=innerWidth;snowCv.height=innerHeight;}
+function snowCount(){return fxLevel?(isTouch?70:130):35;}
+function snowMk(top){
+  var r=1.2+Math.random()*2.8;
+  return {x:Math.random()*innerWidth,y:top?-8:Math.random()*innerHeight,r:r,vy:22+r*13+Math.random()*18,sw:0.4+Math.random()*1.1,ph:Math.random()*6.283,a:0.5+Math.random()*0.45};
+}
+function snowTick(ts){
+  if(!snowOn){snowRaf=0;return;}
+  var dt=Math.min(0.05,(ts-snowLast)/1000||0.016);snowLast=ts;
+  var W=snowCv.width,H=snowCv.height,want=snowCount(),i;
+  if(snowFl.length<want){for(i=0;i<3&&snowFl.length<want;i++)snowFl.push(snowMk(true));}
+  else if(snowFl.length>want)snowFl.length=want;
+  snowCtx.clearRect(0,0,W,H);
+  for(i=0;i<snowFl.length;i++){
+    var f=snowFl[i];
+    f.ph+=dt*f.sw;f.y+=f.vy*dt;f.x+=Math.sin(f.ph)*18*dt+9*dt;
+    if(f.y>H+8||f.x>W+8){f.x=Math.random()*W;f.y=-8;}
+    snowCtx.globalAlpha=f.a;snowCtx.beginPath();snowCtx.arc(f.x,f.y,f.r,0,6.2832);snowCtx.fillStyle='#fff';snowCtx.fill();
+  }
+  snowCtx.globalAlpha=1;
+  snowRaf=requestAnimationFrame(snowTick);
+}
+function snowSet(on){
+  if(on){
+    if(!snowCv){
+      snowCv=document.createElement('canvas');snowCv.id='snow';
+      snowCv.style.cssText='position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:6';
+      document.body.insertBefore(snowCv,document.body.firstChild);snowCtx=snowCv.getContext('2d');
+      snowSize();addEventListener('resize',snowSize);
+    }
+    snowCv.style.display='block';
+    if(!snowFl.length)for(var i=0;i<snowCount();i++)snowFl.push(snowMk(false));
+    snowOn=true;snowLast=performance.now();
+    if(!snowRaf)snowRaf=requestAnimationFrame(snowTick);
+  }else{
+    snowOn=false;
+    if(snowCv){snowCv.style.display='none';snowCtx.clearRect(0,0,snowCv.width,snowCv.height);}
+    snowFl=[];
+  }
+}
+function setXmas(on,quiet){
+  if(!XMAS_SET)return;
+  if(on&&!quiet&&bgmMuted)setBgmMuted(false);
+  xmasOn=on;xmasMusic(on);snowSet(on);
+  var b=$('xmasBtn');b.textContent=on?'🎄 크리스마스 ON':'🎄 크리스마스';b.classList.toggle('on',on);
+  try{localStorage.setItem('steal-a-roh-xmas',on?'1':'0');}catch(e){}
+  if(!quiet){toast(on?'🎅 메리 크리스마스! 산타 캐릭터 + 캐럴 BGM + 눈':'🎄 크리스마스 모드를 껐어요','good');sfx.buy();burst(P.x,5,P.z,on?'#ff5252':'#ffffff',30,8);}
+}
+$('xmasBtn').addEventListener('click',function(){this.blur();setXmas(!xmasOn);});
+try{if(localStorage.getItem('steal-a-roh-xmas')==='1')setXmas(true,true);}catch(e){}
 function updateSkin(dt,moving){
-  if(skinApplied===G.skin)return;
-  var set=G.skin>=0?SKINS[G.skin].set:baseSet;
+  var want=xmasOn&&XMAS_SET?99:G.skin;
+  if(skinApplied===want)return;
+  var set=want===99?XMAS_SET:(G.skin>=0?SKINS[G.skin].set:baseSet);
   pChar.root.visible=false;
   pChar=set.ch;holdTrophies=set.tr;pChar.root.visible=true;
   holdTrophies.forEach(function(t,k){t.visible=(k===P.carry);});
-  skinApplied=G.skin;
+  skinApplied=want;
 }
+/* 친구들에게 보낼 내 겉모습 (크리스마스면 99 = 산타) */
+function netSkin(){return xmasOn&&XMAS_SET?99:G.skin;}
 
 /* =========================================================
    개발자 모드: 게임 중 키보드로 "shangus" 입력 (다시 입력하면 해제)
@@ -2267,9 +2408,9 @@ function devTick(){
    던전: 메달(수집한 큰 손 종류)이 3개 이상이면 입장 · 웨이브 3 → 보스
    ========================================================= */
 var DX=0,DZ=-420,TS=10,TN=19,HALF=TS*TN/2,TC=(TN-1)/2,PORTAL={x:0,z:22};
-var DG={df:1,myDf:1,spawnT:0,on:false,hp:0,max:0,inv:0,cd:0,wave:0,mobs:[],pr:[],boss:null,tiles:[],goal:'',ripT:3,over:0,next:0,hudT:0,lblT:0,ret:null,chk:0,warnT:0};
+var DG={df:1,myDf:1,spawnT:0,q:[],qn:0,runSt:0,on:false,hp:0,max:0,inv:0,cd:0,wave:0,mobs:[],pr:[],boss:null,tiles:[],goal:'',ripT:3,over:0,next:0,hudT:0,lblT:0,ret:null,chk:0,warnT:0};
 var dgStyle=document.createElement('style');
-dgStyle.textContent='.float.dmg{color:#ff5252}.float.hit{color:#fff;font-size:18px}#dgHud{position:fixed;left:10px;top:292px;width:210px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 10px;font-size:13px;z-index:12;display:none}#dgHud .bar{background:#333;border-radius:6px;height:12px;overflow:hidden}#dgHud .bar i{display:block;height:100%}#dgPick{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:60}#dgPick .bkPanel{max-width:420px;width:92vw;background:#0f1d3a;border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:16px 18px;color:#fff}#dgPick h3{margin:0 0 10px}.dgPickBtn{display:block;width:100%;margin:0 0 8px;padding:10px 12px;border-radius:10px;border:3px solid;background:rgba(20,25,45,.95);color:#fff;text-align:left;cursor:pointer;font-size:16px;touch-action:manipulation}.dgPickBtn small{display:block;color:#b0bec5;font-size:12px;margin-top:3px}#dgPickNo{width:100%;padding:8px;border:0;border-radius:8px;background:#546e7a;color:#fff;font-weight:700;cursor:pointer}#dgExit{margin-top:8px;width:100%;padding:6px;border:0;border-radius:8px;background:#6a1b9a;color:#fff;font-weight:700;cursor:pointer;touch-action:manipulation}';
+dgStyle.textContent='.float.dmg{color:#ff5252}.float.hit{color:#fff;font-size:18px}#dgHud{position:fixed;left:10px;top:330px;width:210px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 10px;font-size:13px;z-index:12;display:none}#dgHud .bar{background:#333;border-radius:6px;height:12px;overflow:hidden}#dgHud .bar i{display:block;height:100%}#dgPick{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:60}#dgPick .bkPanel{max-width:420px;width:92vw;background:#0f1d3a;border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:16px 18px;color:#fff}#dgPick h3{margin:0 0 10px}.dgPickBtn{display:block;width:100%;margin:0 0 8px;padding:10px 12px;border-radius:10px;border:3px solid;background:rgba(20,25,45,.95);color:#fff;text-align:left;cursor:pointer;font-size:16px;touch-action:manipulation}.dgPickBtn small{display:block;color:#b0bec5;font-size:12px;margin-top:3px}#dgPickNo{width:100%;padding:8px;border:0;border-radius:8px;background:#546e7a;color:#fff;font-weight:700;cursor:pointer}#dgExit{margin-top:8px;width:100%;padding:6px;border:0;border-radius:8px;background:#6a1b9a;color:#fff;font-weight:700;cursor:pointer;touch-action:manipulation}';
 document.head.appendChild(dgStyle);
 var dgHudEl=document.createElement('div');dgHudEl.id='dgHud';
 dgHudEl.innerHTML='<div id="dgInfo" style="font-weight:700;margin-bottom:4px"></div><div class="bar"><i id="dgHp" style="background:#4caf50;width:100%"></i></div><div id="dgBossRow" style="display:none;margin-top:6px"><div style="font-size:12px;color:#ffab91">👹 보스</div><div class="bar"><i id="dgBHp" style="background:#e53935;width:100%"></i></div></div><button id="dgExit">🚪 던전 나가기</button>';
@@ -2326,12 +2467,36 @@ drawPortalLabel();
 var DG_DMG_PER_SPEED=0.1;
 function dgDmg(){return Math.round((10+medals()*4)*Math.max(1,G.speed*DG_DMG_PER_SPEED));}
 /* 던전 난이도: 몹 수 · 보스 체력 · 보스 공격력 · 바닥 찢기 속도 · 보상 */
+/* mob: 잡몹 수 배율 · mobHits/bossHits: 던전 안 최고 공격력으로 몇 대 때려야 죽는지
+   (공격력이 아무리 세도 원콤이 안 되게 체력이 공격력을 따라 커져요) */
 var DG_DIFFS=[
-  {name:'쉬움',ico:'🟢',col:'#66bb6a',mob:0.6,bossHp:0.5,bossDmg:0.6,rip:1.4,reward:0.5},
-  {name:'보통',ico:'🟡',col:'#ffca28',mob:1,bossHp:1,bossDmg:1,rip:1,reward:1},
-  {name:'어려움',ico:'🔴',col:'#ef5350',mob:1.8,bossHp:2.5,bossDmg:1.7,rip:0.7,reward:3}
+  {name:'쉬움',ico:'🟢',col:'#66bb6a',mob:1.0,mobHits:1,mobDmg:0.8,bossHp:0.5,bossHits:30,bossDmg:0.7,atk:1.2,rip:1.3,reward:0.5,desc:'잡몹 ×1 · 보스 30대 · 보상 ×0.5'},
+  {name:'보통',ico:'🟡',col:'#ffca28',mob:1.7,mobHits:2,mobDmg:1.1,bossHp:1,bossHits:90,bossDmg:1.2,atk:1,rip:1,reward:1,desc:'잡몹 ×1.7 · 보스 90대 · 보상 ×1'},
+  {name:'어려움',ico:'🔴',col:'#ef5350',mob:3,mobHits:5,mobDmg:1.8,bossHp:2.5,bossHits:300,bossDmg:2.5,atk:0.65,rip:0.6,reward:3,desc:'잡몹 ×3 (몹 5대) · 보스 300대 · 보스 공격 ×2.5 · 보상 ×3'},
+  {name:'무한',ico:'♾️',col:'#b36bff',inf:1,reward:1,desc:'끝없는 스테이지 · 10스테이지마다 보스 (첫 보스 = 어려움) · 갈수록 강해짐 · 깬 스테이지만큼 골드·속도'}
 ];
-function dgDiff(){return DG_DIFFS[DG.df]||DG_DIFFS[1];}
+var MOB_CAP=60; /* 한 번에 나와 있는 잡몹 최대 수 (나머지는 잡을 때마다 이어서 나와요) */
+/* 무한 모드: 스테이지가 오를수록 어려움 기준에서 점점 세져요 */
+function dgDiff(){
+  var d=DG_DIFFS[DG.df]||DG_DIFFS[1];if(!d.inf)return d;
+  var h=DG_DIFFS[2],st=Math.max(1,DG.wave||1),k=Math.max(1,Math.ceil(st/10));
+  return {name:'무한',ico:'♾️',col:d.col,inf:1,reward:d.reward,desc:d.desc,
+    mob:2*(1+0.05*st),mobHits:h.mobHits*Math.pow(1.07,st),mobDmg:h.mobDmg*(1+0.05*st),
+    bossHp:h.bossHp*Math.pow(1.5,k-1),bossHits:h.bossHits*Math.pow(1.5,k-1),bossDmg:h.bossDmg*(1+0.25*(k-1)),
+    atk:Math.max(0.4,h.atk*Math.pow(0.93,k-1)),rip:Math.max(0.35,h.rip*Math.pow(0.93,k-1))};
+}
+/* 플레이어 체력: 메달 + 속도에 따라 커져요 (보스 데미지는 예전 기준 체력으로 계산해서 체력이 늘면 그만큼 버텨요) */
+var DG_HP_BASE=250,DG_HP_PER_MEDAL=50,DG_HP_SPEED=0.25;
+function dgBaseHp(){return 100+medals()*20;}
+function dgMaxHp(){return Math.round((DG_HP_BASE+medals()*DG_HP_PER_MEDAL)*(1+DG_HP_SPEED*Math.log10(Math.max(10,G.speed))));}
+function dgDfOk(df){return df===0||df===1||df===2||df===3;}
+/* 방장: 던전 안에서 제일 센 사람의 공격력 (몹·보스 체력 기준) */
+function dgRefDmg(){
+  var m=DG.on?dgDmg():0;
+  for(var id in REM){var r=REM[id];if(r.dg&&r.dd>m)m=r.dd;}
+  return m||dgDmg();
+}
+var INF_KEY='steal-a-roh-inf-best',infBest=0;try{infBest=+localStorage.getItem(INF_KEY)||0;}catch(e){}
 function dgDamage(dmg,kx,kz,force){
   if(DG.over||(!force&&DG.inv>0))return;
   DG.hp-=dmg;DG.inv=force?1.5:0.7;
@@ -2363,13 +2528,13 @@ function dgWorldReset(){
   DG.mobs.forEach(function(o){scene.remove(o.g);});DG.mobs=[];
   DG.pr.forEach(function(q){scene.remove(q.s);q.s.material.dispose();});DG.pr=[];
   if(DG.boss){scene.remove(DG.boss.g);DG.boss=null;}
-  resetTiles();DG.wave=0;DG.next=0;DG.ripT=3;
+  resetTiles();DG.wave=0;DG.next=0;DG.ripT=3;DG.q=[];
 }
 function dgWorldJoin(df){
   if(!hostSide())return;
   if(!DG.act||DG.wdone){
     dgWorldReset();DG.act=true;DG.wdone=0;var inst=++DG.inst;
-    DG.df=(df===0||df===1||df===2)?df:1; /* 처음 들어간 사람이 고른 난이도 */
+    DG.df=dgDfOk(df)?df:1; /* 처음 들어간 사람이 고른 난이도 */
     after(1.2,function(){if(DG.inst===inst)startWave(1);});
   }
 }
@@ -2402,7 +2567,8 @@ function mkMob(type,x,z,id){
     var il=box(1.6,0.5,1.6,'#b71c1c');il.position.y=0.25;g.add(il);
     o.hp=40;o.sp=5;o.dmg=10;o.r=1.8;o.col='#e53935';o.rng=1;
   }
-  o.hp=Math.round(o.hp*sc);o.max=o.hp;o.sp=Math.round(o.sp*1.4*10)/10;o.dmg=Math.round(o.dmg*(1+m*0.03));o.g=g;
+  var df=dgDiff(),wgt=o.hp/30;
+  o.hp=Math.round(Math.max(o.hp*sc,hostSide()?dgRefDmg()*df.mobHits*wgt:0));o.max=o.hp;o.sp=Math.round(o.sp*1.4*10)/10;o.dmg=Math.round(o.dmg*(1+m*0.03)*df.mobDmg);o.g=g;
   o.id=id||++DG.mid;o.nx=x;o.nz=z;
   g.position.set(x,0,z);scene.add(g);DG.mobs.push(o);return o;
 }
@@ -2413,10 +2579,17 @@ function spawnMob(type){
 }
 function startWave(w){
   if(!DG.act||DG.wdone)return;
-  DG.wave=w;DG.next=0;var ex=Math.floor(medals()/6),plan=w===1?{slime:6+ex,bat:4+ex}:w===2?{slime:4+ex,bat:4+ex,imp:4+ex}:{golem:3+ex,imp:5+ex,bat:5+ex,slime:4};
+  DG.wave=w;DG.next=0;var ex=Math.floor(medals()/6),plan;
   var df=dgDiff();
-  for(var k in plan){var cnt=Math.max(1,Math.round(plan[k]*df.mob));for(var i=0;i<cnt;i++)spawnMob(k);}
-  dgToast('⚔️ 웨이브 '+w+'/3 시작! ('+df.ico+' '+df.name+')','warn');
+  if(df.inf){ /* 무한 모드: 스테이지가 오를수록 센 몹이 섞여요 */
+    plan={slime:6,bat:5};if(w>=3)plan.imp=4;if(w>=6)plan.golem=2+Math.floor(w/15);
+  }else plan=w===1?{slime:6+ex,bat:4+ex}:w===2?{slime:4+ex,bat:4+ex,imp:4+ex}:{golem:3+ex,imp:5+ex,bat:5+ex,slime:4};
+  var list=[];
+  for(var k in plan){var cnt=Math.max(1,Math.round(plan[k]*df.mob));for(var i=0;i<cnt;i++)list.push(k);}
+  for(var j=list.length-1;j>0;j--){var r=Math.floor(Math.random()*(j+1)),t=list[j];list[j]=list[r];list[r]=t;}
+  DG.q=list;
+  while(DG.q.length&&DG.mobs.length<MOB_CAP)spawnMob(DG.q.shift());
+  dgToast(df.inf?'♾️ 스테이지 '+w+' 시작! (잡몹 '+list.length+'마리)':'⚔️ 웨이브 '+w+'/3 시작! ('+df.ico+' '+df.name+' · 잡몹 '+list.length+'마리)','warn');
 }
 function mobDeadFx(x,z,col){burst(x,2,z,col,18,8);burst(x,2,z,'#ffffff',8,6);if(DG.on)G.money+=Math.round((income()+20)*3);}
 function killMob(o){
@@ -2442,10 +2615,10 @@ function makeBossVis(x,z){
 }
 function spawnBoss(){
   if(!DG.act||DG.wdone)return;
-  var b=makeBossVis(DX,DZ-HALF*0.3),max=Math.round((6000+medals()*600)*dgDiff().bossHp);
+  var df=dgDiff(),b=makeBossVis(DX,DZ-HALF*0.3),max=Math.round(Math.max((6000+medals()*600)*df.bossHp,dgRefDmg()*df.bossHits));
   b.hp=max;b.max=max;DG.boss=b;
   DG.ripT=2.5;if(DG.on){shk=3;flashA=0.5;}fxBoom(DX,DZ-HALF*0.3,16,'#b36bff',0.8);
-  dgToast('👹 보스 등장! 바닥이 찢어진다 — 구멍에 빠지면 즉사!','warn');
+  dgToast(df.inf?'👹 스테이지 '+DG.wave+' 보스 등장! (체력 '+fmt(max)+') 바닥이 찢어진다!':'👹 보스 등장! (체력 '+fmt(max)+') 바닥이 찢어진다 — 구멍에 빠지면 즉사!','warn');
 }
 function hurtBoss(dmg){
   var b=DG.boss;if(!b)return;
@@ -2456,16 +2629,36 @@ function hurtBoss(dmg){
   if(b.hp<=0)bossDie();
 }
 function bossDie(){
-  var b=DG.boss,p=b.g.position;DG.boss=null;DG.wdone=1;
+  var b=DG.boss,p=b.g.position,inf=!!dgDiff().inf;DG.boss=null;if(!inf)DG.wdone=1;
   scene.remove(b.g);
   bcast({t:'bossK',x:r1(p.x),z:r1(p.z)});
   bossDeadFx(p.x,p.z);
+  if(inf){ /* 무한 모드: 보스 스테이지 클리어 → 다음 스테이지로 */
+    var st=DG.wave,inst=DG.inst;dgStageClear(st,true);resetTilesSoon();
+    after(2.5,function(){if(DG.inst===inst&&DG.act)startWave(st+1);});
+  }
+}
+/* 무한 모드: 보스를 잡으면 찢어진 바닥을 천천히 복구 */
+function resetTilesSoon(){DG.ripT=99;var ids=[];DG.tiles.forEach(function(t,k){if(t.st===1){t.st=0;t.t=0;if(t.cr){t.cr.forEach(function(c){scene.remove(c);c.material.dispose();});t.cr=null;}t.m.material.emissive.setRGB(0,0,0);}});bcast({t:'tiles',s:tileState()});}
+/* 무한 모드 스테이지 클리어: 방장이 모두에게 알리고, 던전 안에 있는 사람은 각자 보상 */
+function dgStageClear(st,boss){bcast({t:'dgst',s:st,b:boss?1:0});dgStageReward(st,boss);}
+function dgStageReward(st,boss){
+  if(!DG.on||DG.over)return;
+  var mul=boss?5:1;
+  var gold=Math.round((income()*8+20000)*st*mul);
+  var spd=Math.round((G.speed*0.004+25)*st*mul);
+  G.money+=gold;G.speed+=spd;DG.runSt=Math.max(DG.runSt,st);
+  if(st>infBest){infBest=st;try{localStorage.setItem(INF_KEY,String(st));}catch(e){}}
+  floatText('♾️ '+st+'스테이지 클리어! 💰+'+fmt(gold)+' ⚡+'+fmt(spd),VW()/2,VH()*0.33,0,'money');
+  toast((boss?'👑 보스 ':'✅ ')+'스테이지 '+st+' 클리어! 💰 +'+fmt(gold)+' · ⚡ 속도 +'+fmt(spd),'good');
+  sfx.deposit();save();
 }
 /* 보스가 죽었을 때: 던전 안에 있던 사람은 각자 자기 보상을 받음 */
 function bossDeadFx(x,z){
   fxBoom(x,z,22,'#ffd54a',1);
   for(var i=0;i<160*fxMul;i++)emit(x+rand(-4,4),rand(1,14),z+rand(-3,3),rand(-14,14),rand(2,18),rand(-14,14),'hsl('+((Math.random()*360)|0)+',95%,62%)',rand(0.6,1.3),18);
   if(!DG.on||DG.over)return;
+  if(dgDiff().inf){toast('👑 보스 격파! 다음 스테이지로...','good');return;}
   DG.over=2;
   var m=medals(),rw=Math.round((income()*300+500000)*(1+m*0.25)*dgDiff().reward);G.money+=rw;save();
   toast('🏆 보스 격파! 💰 +'+fmt(rw),'good');floatText('🏆 보스 격파! +'+fmt(rw),VW()/2,VH()*0.4,0,'money');
@@ -2566,7 +2759,7 @@ dgPickEl.innerHTML='<div class="bkPanel"><h3>🕳️ 던전 난이도</h3><div i
 document.body.appendChild(dgPickEl);
 DG_DIFFS.forEach(function(d,i){
   var b=document.createElement('button');b.type='button';b.className='dgPickBtn';b.style.borderColor=d.col;
-  b.innerHTML='<b>'+(i+1)+'. '+d.ico+' '+d.name+'</b><small>몹 ×'+d.mob+' · 보스 체력 ×'+d.bossHp+' · 보스 공격 ×'+d.bossDmg+' · 보상 ×'+d.reward+'</small>';
+  b.innerHTML='<b>'+(i+1)+'. '+d.ico+' '+d.name+(d.inf?' <span class="infBest"></span>':'')+'</b><small>'+d.desc+'</small>';
   b.addEventListener('click',function(){dgPickClose();enterDungeon(i);});
   $('dgPickBtns').appendChild(b);
 });
@@ -2575,6 +2768,7 @@ function dgPickOpen(){
   if(m<3){toast('🏅 메달(수집한 큰 손 종류)이 3개 이상 필요해요! 지금 '+m+'개','warn');sfx.deny();return;}
   /* 친구가 이미 던전 안에 있으면 그 난이도로 바로 같이 들어가요 */
   if(DG.act&&!DG.wdone&&dgAnyInsideOthers()){enterDungeon(DG.df);return;}
+  var ib=dgPickEl.querySelector('.infBest');if(ib)ib.textContent=infBest?'(최고 '+infBest+'스테이지)':'';
   dgPickEl.style.display='flex';modalOpen=true;keys={};joy.x=joy.y=0;
 }
 function dgPickClose(){dgPickEl.style.display='none';modalOpen=false;}
@@ -2582,15 +2776,15 @@ function dgAnyInsideOthers(){for(var id in REM)if(REM[id].dg)return true;return 
 $('dgPickNo').addEventListener('click',dgPickClose);
 addEventListener('keydown',function(e){
   if(dgPickEl.style.display!=='flex')return;
-  if(e.key==='1'||e.key==='2'||e.key==='3'){var i=+e.key-1;dgPickClose();enterDungeon(i);}
+  if(e.key==='1'||e.key==='2'||e.key==='3'||e.key==='4'){var i=+e.key-1;dgPickClose();enterDungeon(i);}
   else if(e.key==='Escape')dgPickClose();
 });
 function enterDungeon(df){
   var m=medals();
   if(m<3){toast('🏅 메달(수집한 큰 손 종류)이 3개 이상 필요해요! 지금 '+m+'개','warn');sfx.deny();return;}
-  DG.myDf=(df===0||df===1||df===2)?df:1;
+  DG.myDf=dgDfOk(df)?df:1;
   if(!(DG.act&&!DG.wdone&&dgAnyInsideOthers()))DG.df=DG.myDf;
-  DG.on=true;DG.max=100+m*20;DG.hp=DG.max;DG.inv=1;DG.over=0;DG.cd=0;
+  DG.on=true;DG.runSt=0;DG.max=dgMaxHp();DG.hp=DG.max;DG.inv=1;DG.over=0;DG.cd=0;
   DG.fall=0;P.stun=0;DG.spawnT=1.5;dgSafeSpawn();
   camPos.set(P.x,12,P.z-12);
   dgHudEl.style.display='block';$('shop').classList.add('hide');
@@ -2604,7 +2798,8 @@ function exitDungeon(win){
   DG.on=false;DG.over=0;DG.fall=0;P.stun=0;P.vy=0;
   P.x=slotX(mySlot)+SPAWN_DX;P.z=SPAWN_Z;P.y=0;P.gy=0;P.kx=P.kz=0;P.cz=P.z;camPos.set(P.x,12,P.z-12);
   dgHudEl.style.display='none';$('shop').classList.remove('hide');pChar.root.visible=true;
-  toast(win?'🏠 던전 클리어! 기지로 귀환':'🏠 기지로 귀환','good');
+  if(DG.df===3&&DG.runSt>0)toast('♾️ 무한 모드 기록: '+DG.runSt+'스테이지 클리어! (최고 '+infBest+')','good');
+  else toast(win?'🏠 던전 클리어! 기지로 귀환':'🏠 기지로 귀환','good');
   if(hostSide())dgWorldCheckEnd();else netSendState();
 }
 $('dgExit').addEventListener('click',function(){if(DG.on)exitDungeon(false);});
@@ -2633,7 +2828,7 @@ function enemyNear(){
 /* 투사체: 방장이 만들고 모두에게 알림 → 각자 움직이고, 내 캐릭터만 맞았는지 판정 */
 function addDgProj(x,y,z,vx,vz,dmg,col,size,life,bd){
   var s=makeProj(size);s.material.color.set(col);s.position.set(x,y,z);scene.add(s);
-  DG.pr.push({s:s,vx:vx,vz:vz,life:life,dmg:bd?Math.round(((DG.max||100)*0.12+8)*dgDiff().bossDmg):dmg});
+  DG.pr.push({s:s,vx:vx,vz:vz,life:life,dmg:bd?Math.round((dgBaseHp()*0.12+8)*dgDiff().bossDmg):dmg});
 }
 function spawnDgProj(x,y,z,vx,vz,dmg,col,size,life,bd){
   addDgProj(x,y,z,vx,vz,dmg,col,size,life,bd);
@@ -2694,7 +2889,7 @@ function dgLocalHits(dt){
   var b=DG.boss;
   if(b){
     p=b.g.position;dx=P.x-p.x;dz=P.z-p.z;d=Math.hypot(dx,dz)||1;
-    if(d<b.r+(b.dash>0?2.5:1.6)&&P.y<3)dgDamage((10+DG.max*(b.dash>0?0.2:0.1))*dgDiff().bossDmg,dx,dz);
+    if(d<b.r+(b.dash>0?2.5:1.6)&&P.y<3)dgDamage((10+dgBaseHp()*(b.dash>0?0.2:0.1))*dgDiff().bossDmg,dx,dz);
   }
 }
 function fallDeath(){
@@ -2737,7 +2932,7 @@ function updateBossLogic(dt){
     b.wind-=dt;if(b.wind<=0)bossAttack(b.wt);
   }else if(T){
     var dx=T.x-p.x,dz=T.z-p.z,d=Math.hypot(dx,dz)||1,sp=[7,10,13][rg];if(d>9){p.x+=dx/d*sp*dt;p.z+=dz/d*sp*dt;}
-    if(!DG.wdone){b.atkT-=dt;if(b.atkT<=0){b.wt=pickAtk();b.wind=b.wt==='dash'?0.7:0.55;b.atkT=[3.2,2.3,1.6][rg]+b.wind;dgToast('⚠️ '+BOSS_NM[b.wt],'warn');}}
+    if(!DG.wdone){b.atkT-=dt;if(b.atkT<=0){b.wt=pickAtk();b.wind=b.wt==='dash'?0.7:0.55;b.atkT=[3.2,2.3,1.6][rg]*dgDiff().atk+b.wind;dgToast('⚠️ '+BOSS_NM[b.wt],'warn');}}
   }
   p.x=clamp(p.x,DX-HALF+5,DX+HALF-5);p.z=clamp(p.z,DZ-HALF+5,DZ+HALF-5);
   if(!DG.wdone){DG.ripT-=dt;if(DG.ripT<=0)ripPlan();}
@@ -2758,9 +2953,15 @@ function updateBossVis(dt){
 function dgWorld(dt){
   if(!dgAnyInside()){dgWorldCheckEnd();return;}
   updateMobsLogic(dt);updateBossLogic(dt);
-  if(!DG.wdone&&!DG.boss&&DG.wave>0&&DG.mobs.length===0&&!DG.next){
+  while(DG.q.length&&DG.mobs.length<MOB_CAP)spawnMob(DG.q.shift()); /* 잡은 만큼 이어서 등장 */
+  if(!DG.wdone&&!DG.boss&&DG.wave>0&&DG.mobs.length===0&&!DG.q.length&&!DG.next){
     DG.next=1;var inst=DG.inst;
-    if(DG.wave<3)after(1.4,function(){if(DG.inst===inst)startWave(DG.wave+1);});
+    if(dgDiff().inf){
+      var st=DG.wave;dgStageClear(st,false);
+      if((st+1)%10===0){dgToast('👹 스테이지 '+(st+1)+' — 보스가 나타난다!','warn');after(1.8,function(){if(DG.inst===inst){DG.wave=st+1;spawnBoss();}});}
+      else after(1.4,function(){if(DG.inst===inst)startWave(st+1);});
+    }
+    else if(DG.wave<3)after(1.4,function(){if(DG.inst===inst)startWave(DG.wave+1);});
     else{dgToast('✅ 잡몹 정리 완료! 보스가 나타난다...','good');after(1.8,function(){if(DG.inst===inst)spawnBoss();});}
   }
 }
@@ -2790,10 +2991,12 @@ function updateDungeon(dt){
     fallDeath();
   }
   var others=0;for(var id in REM)if(REM[id].dg)others++;
-  DG.goal=(DG.boss?'👹 보스 격파! 붉은 칸 = 곧 구멍 · 빠지면 즉사!':DG.wave<=3&&DG.wave>0?'⚔️ 웨이브 '+DG.wave+'/3 · 남은 몹 <b>'+DG.mobs.length+'</b>':'🕳️ 던전')+(others?' · 👥 '+(others+1)+'명':'');
+  var left=DG.mobs.length+(hostSide()?DG.q.length:DG.qn);
+  DG.goal=(DG.df===3?(DG.boss?'♾️ 스테이지 '+DG.wave+' · 👹 보스! 붉은 칸 = 곧 구멍':DG.wave>0?'♾️ 스테이지 <b>'+DG.wave+'</b> · 남은 몹 <b>'+left+'</b> · 다음 보스 '+(Math.ceil((DG.wave+0.5)/10)*10)+'스테이지':'♾️ 무한 모드')
+    :(DG.boss?'👹 보스 격파! 붉은 칸 = 곧 구멍 · 빠지면 즉사!':DG.wave<=3&&DG.wave>0?'⚔️ 웨이브 '+DG.wave+'/3 · 남은 몹 <b>'+left+'</b>':'🕳️ 던전'))+(others?' · 👥 '+(others+1)+'명':'');
   DG.hudT+=dt;
   if(DG.hudT>0.08){
-    DG.hudT=0;$('dgInfo').textContent='❤ '+Math.ceil(DG.hp)+' / '+DG.max+'  '+dgDiff().ico+' '+dgDiff().name+'  ⚔ '+fmt(dgDmg());
+    DG.hudT=0;$('dgInfo').textContent='❤ '+Math.ceil(DG.hp)+' / '+DG.max+'  '+dgDiff().ico+' '+dgDiff().name+(DG.df===3?' '+DG.wave+'단계':'')+'  ⚔ '+fmt(dgDmg());
     $('dgHp').style.width=(DG.hp/DG.max*100)+'%';
     var br=$('dgBossRow');br.style.display=DG.boss?'block':'none';
     if(DG.boss)$('dgBHp').style.width=Math.max(0,DG.boss.hp/DG.boss.max*100)+'%';
@@ -3180,6 +3383,7 @@ $('muteBtn').addEventListener('click',function(){setBgmMuted(!bgmMuted);});
 setBgmMuted(bgmMuted);
 $('startBtn').addEventListener('click',function(){
   initAudio();started=true;$('start').style.display='none';
+  if(xmasOn)xmasMusic(true);
   $('shop').classList.toggle('hide',!inSafe());
   toast('🏆 가장 가까운 받침대부터 훔쳐보자! (길 따라 앞으로)','good');
 });
@@ -3195,7 +3399,7 @@ function syncShopBtn(){
 $('shopBtn').addEventListener('click',function(){this.blur();document.body.classList.add('shopOpen');document.body.classList.remove('menu');syncShopBtn();});
 $('shopClose').addEventListener('click',function(){this.blur();document.body.classList.remove('shopOpen');syncShopBtn();});
 $('menuBtn').addEventListener('click',function(){this.blur();document.body.classList.toggle('menu');});
-['muteBtn','fxBtn','bkBtn','mpBtn'].forEach(function(id){$(id).addEventListener('click',function(){if(isTouch)document.body.classList.remove('menu');});});
+['muteBtn','fxBtn','bkBtn','mpBtn','xmasBtn'].forEach(function(id){$(id).addEventListener('click',function(){if(isTouch)document.body.classList.remove('menu');});});
 renderer.domElement.addEventListener('pointerdown',function(){document.body.classList.remove('menu');});
 function applyOrient(){
   ROT=isPhone&&innerHeight>innerWidth;
