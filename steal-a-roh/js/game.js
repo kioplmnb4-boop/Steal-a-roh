@@ -2561,8 +2561,10 @@ var DEV=false,DEV_MONEY=1e15,DEV_SPEED=1e12,devBuf='';
 addEventListener('keydown',function(e){
   if(modalOpen){if(e.code==='Escape'){bkClose();mpModalClose();}return;}
   if(!started||e.repeat||!e.key||e.key.length!==1)return;
-  devBuf=(devBuf+e.key.toLowerCase()).slice(-7);
-  if(devBuf==='shangus'){devBuf='';toggleDev();}
+  if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))return;
+  devBuf=(devBuf+e.key.toLowerCase()).slice(-11);
+  if(devBuf==='//shangus//'){devBuf='';macToggle();return;} /* 🤖 매크로 */
+  if(devBuf.slice(-7)==='shangus'&&devBuf.slice(-8,-7)!=='/'){devBuf='';toggleDev();}
 });
 function toggleDev(){
   DEV=!DEV;
@@ -2574,6 +2576,70 @@ function toggleDev(){
     sfx.steal();burst(P.x,4,P.z,'#ff4fe0',60,12);
     toast('🛠️ 개발자 모드 ON — 전부 언락 · 돈 무한 · 속도 MAX','good');
   }else toast('🛠️ 개발자 모드 OFF (돈·속도 고정 해제)','warn');
+}
+/* =========================================================
+   🤖 던전 매크로: 게임 중 키보드로 "//SHANGUS//" 입력 (다시 입력하면 해제)
+   - 가장 가까운 몹/보스를 쫓아가서 자동 공격
+   - 구멍·금 간 바닥 피해서 이동, 날아오는 투사체 회피, 보스 기 모을 때 거리 벌리기
+   - 증강은 제일 높은 등급 자동 선택, 체력 35% 아래면 포션 자동 사용
+   ========================================================= */
+var MAC={on:false,potT:0,jT:0,unl:false};
+function macToggle(force){
+  var v=force===undefined?!MAC.on:!!force;
+  if(v)MAC.unl=true;
+  MAC.on=v;var b=$('dgMac');if(b){b.style.display=MAC.unl?'block':'none';b.textContent=MAC.on?'🤖 매크로 ON':'🤖 매크로 OFF';b.style.background=MAC.on?'#2e7d32':'#37474f';}
+  if(force===undefined)toast(MAC.on?'🤖 던전 매크로 ON':'🤖 던전 매크로 OFF',MAC.on?'good':'warn');
+}
+function macSafe(x,z){var t=tileAtXZ(x,z);return !!t&&t.st===0;}
+function macInput(dt){
+  if(!MAC.on)return null;
+  if(!DG.on){
+    /* 던전 밖: 포털로 걸어가서 🔴 어려움으로 자동 입장 */
+    if(dgPickEl.style.display==='flex'){dgPickClose();}
+    if(modalOpen||P.carry>=0||P.stun>0)return null;
+    if(medals()<3){if(!MAC.mw){MAC.mw=1;toast('🤖 매크로: 메달이 3개 이상 있어야 던전에 들어가요','warn');}return null;}
+    MAC.mw=0;
+    var ex=PORTAL.x-P.x,ez=PORTAL.z-P.z,el=Math.hypot(ex,ez);
+    if(el<4.5){MAC.ent=(MAC.ent||0)-dt;if(MAC.ent<=0){MAC.ent=1.5;enterDungeon(2);}return null;}
+    var sy0=Math.sin(cam.yaw),cy0=Math.cos(cam.yaw);ex/=el;ez/=el;
+    return [cy0*ex-sy0*ez,-sy0*ex-cy0*ez];
+  }
+  if(DG.over)return null;
+  /* 증강: 제일 높은 등급 */
+  if(augOpenNow&&augOpts.length){var best=augOpts[0];augOpts.forEach(function(o){var a=AUG_BY[o.id];if(a&&a.t>AUG_BY[best.id].t)best=o;});augTake(best.id);return null;}
+  if(modalOpen)return null;
+  /* 포션 */
+  MAC.potT-=dt;if(DG.hp<DG.max*0.35&&MAC.potT<=0){MAC.potT=3;try{useItem('hp');}catch(e){}}
+  /* 목표: 보스 우선, 없으면 가장 가까운 몹 */
+  var tx=null,tz=null,want=6,b=DG.boss,i,o,bd=1e9;
+  for(i=0;i<DG.mobs.length;i++){o=DG.mobs[i];var d=Math.hypot(o.g.position.x-P.x,o.g.position.z-P.z);if(d<bd){bd=d;tx=o.g.position.x;tz=o.g.position.z;want=3+o.r;}}
+  if(b){var dbs=Math.hypot(b.g.position.x-P.x,b.g.position.z-P.z);if(tx===null||dbs<bd+20){tx=b.g.position.x;tz=b.g.position.z;want=b.r+5;bd=dbs;}}
+  var vx=0,vz=0;
+  if(tx!==null){var ddx=tx-P.x,ddz=tz-P.z,L=Math.hypot(ddx,ddz)||1;
+    if(L>want){vx=ddx/L;vz=ddz/L;}
+    else if(b&&tx===b.g.position.x&&(b.wind>0||b.dash>0)){vx=-ddx/L;vz=-ddz/L;} /* 보스 기 모으면 물러서기 */
+  }else{var cx=DX-P.x,cz=DZ-P.z,cl=Math.hypot(cx,cz);if(cl>15){vx=cx/cl;vz=cz/cl;}} /* 몹 없으면 가운데로 */
+  /* 투사체 회피 */
+  for(i=0;i<DG.pr.length;i++){var pr=DG.pr[i],px=pr.s.position.x-P.x,pz=pr.s.position.z-P.z,pd=Math.hypot(px,pz);
+    if(pd<9&&(px*pr.vx+pz*pr.vz)<0){var sp=Math.hypot(pr.vx,pr.vz)||1,sx=-pr.vz/sp,sz=pr.vx/sp;if(sx*px+sz*pz>0){sx=-sx;sz=-sz;}var w=(9-pd)/9*2;vx+=sx*w;vz+=sz*w;}}
+  /* 점프: 탄막·지진파 뒤에는 계속 점프, 투사체가 코앞이면 점프 */
+  MAC.jT=Math.max(0,MAC.jT-dt);
+  if(b&&b.wind>0&&(b.wt==='shock'||b.wt==='ring'||b.wt==='fan'))MAC.jT=3.2;
+  var close=false;for(i=0;i<DG.pr.length;i++){var q2=DG.pr[i];if(Math.hypot(q2.s.position.x-P.x,q2.s.position.z-P.z)<4.5){close=true;break;}}
+  if((MAC.jT>0&&MAC.jT<2.9)||close)wantJump=true;
+  var vl=Math.hypot(vx,vz);
+  /* 지금 서 있는 칸이 위험하면 가장 가까운 안전한 칸으로 */
+  if(!macSafe(P.x,P.z)){var bx=0,bz=0,bb=1e9;for(var a=0;a<16;a++){var an=a/16*6.283;for(var r=4;r<=TS*2;r+=3){var qx=P.x+Math.cos(an)*r,qz=P.z+Math.sin(an)*r;if(macSafe(qx,qz)){if(r<bb){bb=r;bx=Math.cos(an);bz=Math.sin(an);}break;}}}if(bb<1e9){vx=bx;vz=bz;vl=1;}}
+  else if(vl>0.05){
+    /* 가려는 방향이 구멍이면 조금씩 틀어서 안전한 방향 찾기 */
+    vx/=vl;vz/=vl;var base=Math.atan2(vz,vx),ok=false;
+    for(var k=0;k<13&&!ok;k++){var off=(k%2?1:-1)*Math.ceil(k/2)*0.35,ang=base+off,ax=Math.cos(ang),az=Math.sin(ang);
+      if(macSafe(P.x+ax*3,P.z+az*3)&&macSafe(P.x+ax*6,P.z+az*6)){vx=ax;vz=az;ok=true;}}
+    if(!ok){vx=vz=0;}
+  }
+  if(Math.hypot(vx,vz)<0.05)return [0,0];
+  var sy=Math.sin(cam.yaw),cy=Math.cos(cam.yaw);
+  return [cy*vx-sy*vz,-sy*vx-cy*vz];
 }
 function devTick(){
   if(!DEV)return;
@@ -2590,8 +2656,9 @@ var dgStyle=document.createElement('style');
 dgStyle.textContent='.float.dmg{color:#ff5252}.float.hit{color:#fff;font-size:18px}#dgHud{position:fixed;left:10px;top:368px;width:210px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 10px;font-size:13px;z-index:12;display:none}#dgHud .bar{background:#333;border-radius:6px;height:12px;overflow:hidden}#dgHud .bar i{display:block;height:100%}#dgPick{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:60}#dgPick .bkPanel{max-width:420px;width:92vw;background:#0f1d3a;border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:16px 18px;color:#fff}#dgPick h3{margin:0 0 10px}.dgPickBtn{display:block;width:100%;margin:0 0 8px;padding:10px 12px;border-radius:10px;border:3px solid;background:rgba(20,25,45,.95);color:#fff;text-align:left;cursor:pointer;font-size:16px;touch-action:manipulation}.dgPickBtn small{display:block;color:#b0bec5;font-size:12px;margin-top:3px}#dgPickNo{width:100%;padding:8px;border:0;border-radius:8px;background:#546e7a;color:#fff;font-weight:700;cursor:pointer}#dgExit{margin-top:8px;width:100%;padding:6px;border:0;border-radius:8px;background:#6a1b9a;color:#fff;font-weight:700;cursor:pointer;touch-action:manipulation}';
 document.head.appendChild(dgStyle);
 var dgHudEl=document.createElement('div');dgHudEl.id='dgHud';
-dgHudEl.innerHTML='<div id="dgInfo" style="font-weight:700;margin-bottom:4px"></div><div class="bar"><i id="dgHp" style="background:#4caf50;width:100%"></i></div><div id="dgBossRow" style="display:none;margin-top:6px"><div style="font-size:12px;color:#ffab91">👹 보스</div><div class="bar"><i id="dgBHp" style="background:#e53935;width:100%"></i></div></div><button id="dgExit">🚪 던전 나가기</button>';
+dgHudEl.innerHTML='<div id="dgInfo" style="font-weight:700;margin-bottom:4px"></div><div class="bar"><i id="dgHp" style="background:#4caf50;width:100%"></i></div><div id="dgBossRow" style="display:none;margin-top:6px"><div style="font-size:12px;color:#ffab91">👹 보스</div><div class="bar"><i id="dgBHp" style="background:#e53935;width:100%"></i></div></div><button id="dgMac" style="display:none;margin-top:8px;width:100%;padding:6px;border:0;border-radius:8px;background:#37474f;color:#fff;font-weight:700;cursor:pointer">🤖 매크로 OFF</button><button id="dgExit">🚪 던전 나가기</button>';
 document.body.appendChild(dgHudEl);
+$('dgMac').addEventListener('click',function(){this.blur();macToggle();});
 function medals(){var c=0;for(var i=0;i<N;i++)if(G.counts[i]>0)c++;return c;}
 function clampP(){
   if(DG.on){P.x=clamp(P.x,DX-HALF+0.5,DX+HALF-0.5);P.z=clamp(P.z,DZ-HALF+0.5,DZ+HALF-0.5);}
@@ -3570,7 +3637,7 @@ function updateDungeon(dt){
   augTick(dt);
   pChar.root.visible=!(DG.inv>0&&Math.floor(DG.inv*20)%2===0);
   $('shop').classList.add('hide');
-  if(!DG.over&&(keys.KeyE||(isTouch&&enemyNear())))dgAttack();
+  if(!DG.over&&(keys.KeyE||((isTouch||MAC.on)&&enemyNear())))dgAttack();
   var tl=tileAt();
   DG.spawnT=Math.max(0,DG.spawnT-dt);
   if(DG.spawnT>0&&tl.st!==0&&!DG.over){dgSafeSpawn();tl=tileAt();} /* 막 들어왔는데 구멍/금 간 칸이면 옮겨줘요 */
@@ -3740,6 +3807,7 @@ function update(dt,t){
   var ix=((keys.KeyD||keys.ArrowRight)?1:0)-((keys.KeyA||keys.ArrowLeft)?1:0);
   var iy=((keys.KeyW||keys.ArrowUp)?1:0)-((keys.KeyS||keys.ArrowDown)?1:0);
   ix+=joy.x;iy+=joy.y;
+  var mi=macInput(dt);if(mi){ix+=mi[0];iy+=mi[1];}
   var mag=Math.hypot(ix,iy);if(mag>1){ix/=mag;iy/=mag;mag=1;}
   var spd=realSpeed(G.speed)*(DG.on?DG.S.move:gearMul('move'))*skMove(),moving=false;
   P.stun=Math.max(0,P.stun-dt);
@@ -4535,4 +4603,5 @@ setInterval(function(){
   clock+=dt;update(dt,clock);netTick(1);
 },50);
 
+window.__GAME_OK__=true;
 })();
