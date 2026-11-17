@@ -2594,13 +2594,13 @@ function macSafe(x,z){var t=tileAtXZ(x,z);return !!t&&t.st===0;}
 function macInput(dt){
   if(!MAC.on)return null;
   if(!DG.on){
-    /* 던전 밖: 포털로 걸어가서 🔴 어려움으로 자동 입장 */
+    /* 던전 밖: 포털로 걸어가서 ♾️ 무한 모드로 자동 입장 */
     if(dgPickEl.style.display==='flex'){dgPickClose();}
     if(modalOpen||P.carry>=0||P.stun>0)return null;
     if(medals()<3){if(!MAC.mw){MAC.mw=1;toast('🤖 매크로: 메달이 3개 이상 있어야 던전에 들어가요','warn');}return null;}
     MAC.mw=0;
     var ex=PORTAL.x-P.x,ez=PORTAL.z-P.z,el=Math.hypot(ex,ez);
-    if(el<4.5){MAC.ent=(MAC.ent||0)-dt;if(MAC.ent<=0){MAC.ent=1.5;enterDungeon(2);}return null;}
+    if(el<4.5){MAC.ent=(MAC.ent||0)-dt;if(MAC.ent<=0){MAC.ent=1.5;enterDungeon(3);}return null;}
     var sy0=Math.sin(cam.yaw),cy0=Math.cos(cam.yaw);ex/=el;ez/=el;
     return [cy0*ex-sy0*ez,-sy0*ex-cy0*ez];
   }
