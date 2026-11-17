@@ -118,7 +118,7 @@ NPCS.forEach(function(n,i){
 /* =========================================================
    저장 / 불러오기
    ========================================================= */
-var SKIN_N=17; /* 캐릭터 수 (브론즈·실버·골드 + 롤 모티브 10종) */
+var SKIN_N=3; /* 캐릭터 수 */
 var OFFLINE=0;var G={owned:Array(SKIN_N).fill(0),skin:-1,streak:0,money:0,speed:10,qty:TREADS.map(function(){return 0;}),counts:NPCS.map(function(){return 0;})};
 var noSave=false,modalOpen=false;
 function save(){
@@ -1434,63 +1434,6 @@ function floatText(text,x,y,z,cls){
    ========================================================= */
 var P={x:slotX(mySlot)+SPAWN_DX,y:0,z:SPAWN_Z,gy:0,vy:0,stun:0,face:0,lie:0,phase:0,carry:-1,treadAcc:0};
 /* 플레이어: 사진 얼굴 + 정장 차림의 블록 캐릭터 (팔·다리 전부 있음) */
-/* 🎭 캐릭터 오리지널 의상 (직업풍 장식: 투구·모자·망토 등) */
-function gearUp(ch,k,o){
-  var B=ch.body,A=o.stripe||'#ffffff',S=o.suit||'#333333',T=o.tie||'#ff0000';
-  function add(m,x,y,z,rx,rz){m.position.set(x,y,z);if(rx)m.rotation.x=rx;if(rz)m.rotation.z=rz;B.add(m);return m;}
-  function bx(w,h,d,c,x,y,z,rx,rz){return add(box(w,h,d,c),x,y,z,rx,rz);}
-  function cone(r,h,c,seg,x,y,z,rx,rz){return add(new THREE.Mesh(new THREE.ConeGeometry(r,h,seg||4),new THREE.MeshLambertMaterial({color:c})),x,y,z,rx,rz);}
-  function cyl(r1,r2,h,c,x,y,z,rx,rz){return add(new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,14),new THREE.MeshLambertMaterial({color:c})),x,y,z,rx,rz);}
-  function orb(r,c,x,y,z){return add(new THREE.Mesh(new THREE.SphereGeometry(r,10,8),new THREE.MeshBasicMaterial({color:c})),x,y,z);}
-  var i;
-  switch(k){
-    case 'knight': /* 깃털 투구 + 등에 둥근 방패 */
-      bx(2,0.5,2,'#b0bec5',0,6,0);bx(0.3,0.8,1.3,'#e53935',0,6.6,-0.1);
-      cyl(1.15,1.15,0.2,S,0,3.1,-0.72,Math.PI/2);cyl(0.45,0.45,0.26,A,0,3.1,-0.74,Math.PI/2);break;
-    case 'wizard': /* 뾰족 모자 + 등에 지팡이 */
-      cyl(1.65,1.65,0.14,'#5e35b1',0,5.95,0);cone(1,2.1,'#5e35b1',12,0,7.05,0);cyl(1.02,1.02,0.25,A,0,6.15,0);
-      cyl(0.1,0.1,4.2,'#8d6e63',0.95,3.6,-0.75,0,0.15);orb(0.35,'#fff59d',0.64,5.75,-0.75);break;
-    case 'explorer': /* 챙 모자 + 배낭 */
-      bx(1.95,0.4,1.95,S,0,6,0);bx(1.95,0.12,0.8,S,0,5.85,1.3);
-      bx(1.5,1.7,0.7,'#795548',0,3.1,-0.85);cyl(0.35,0.35,1.7,'#a1887f',0,4.15,-0.85,0,Math.PI/2);break;
-    case 'gunslinger': /* 넓은 챙 모자 + 판초 */
-      cyl(1.75,1.75,0.12,'#4e342e',0,5.93,0);cyl(0.85,0.98,0.8,'#4e342e',0,6.38,0);cyl(1,1,0.16,T,0,6.08,0);
-      bx(3.4,0.8,1.5,'#8d6e63',0,3.8,0);bx(3.4,0.14,1.52,T,0,3.5,0);break;
-    case 'punk': /* 모히칸 + 어깨띠 */
-      for(i=0;i<5;i++)bx(0.3,0.5+0.35*Math.sin((i+0.5)/5*Math.PI),0.36,A,0,6.1+0.17*Math.sin((i+0.5)/5*Math.PI),-0.72+i*0.36);
-      bx(0.3,2.7,1.14,'#3e2723',0,3,0,0,0.72);for(i=0;i<3;i++)orb(0.2,'#ffd740',-0.55+i*0.55,2.1,0.56);break;
-    case 'barbarian': /* 뿔 투구 + 털 망토 */
-      bx(2,0.5,2,'#757575',0,6,0);cone(0.28,1.1,'#fff8e1',8,-1.25,6.35,0,0,0.7);cone(0.28,1.1,'#fff8e1',8,1.25,6.35,0,0,-0.7);
-      bx(2.7,0.5,1.5,'#6d4c41',0,4.05,0);bx(2.4,2.7,0.25,'#5d4037',0,2.8,-0.7);break;
-    case 'pharaoh': /* 줄무늬 두건 + 황금 목걸이 */
-      bx(2.1,0.55,2.05,'#ffca28',0,5.98,0);
-      [-1,1].forEach(function(sx){bx(0.32,1.7,1.2,A,sx*1.1,4.95,-0.15);bx(0.34,0.25,1.22,'#ffca28',sx*1.1,5.2,-0.15);bx(0.34,0.25,1.22,'#ffca28',sx*1.1,4.5,-0.15);});
-      bx(2.5,0.3,1.35,'#ffca28',0,3.95,0);orb(0.22,A,0,3.95,0.7);break;
-    case 'ninja': /* 머리띠 + 목도리 + 등에 막대 2개 */
-      bx(1.95,0.28,1.95,T,0,5.5,0);bx(0.25,0.1,1.2,T,-0.3,5.45,-1.5,0.35);bx(0.25,0.1,1.2,T,0.3,5.4,-1.45,-0.2);
-      bx(2.05,0.4,1.5,T,0,4.05,0);cyl(0.09,0.09,3.4,'#cfd8dc',0,3.3,-0.7,0,0.7);cyl(0.09,0.09,3.4,'#cfd8dc',0,3.3,-0.72,0,-0.7);break;
-    case 'ronin': /* 삿갓 + 긴 목도리 */
-      cone(2,0.85,'#d7ccc8',18,0,6.2,0);bx(2.05,0.4,1.5,T,0,4.05,0);bx(0.5,0.12,1.9,T,0.45,3.9,-1.4,0.3);break;
-    case 'spirit': /* 두건 + 떠다니는 도깨비불 */
-      bx(2.05,0.4,2.05,S,0,6,0);bx(2.05,1.9,0.25,S,0,5,-1.05);bx(0.16,1.9,1.5,S,-1.02,5,-0.3);bx(0.16,1.9,1.5,S,1.02,5,-0.3);
-      orb(0.3,A,-2,5.7,-0.5);orb(0.22,A,2,6.2,-0.3);orb(0.18,'#ffffff',-1.8,6.5,0.2);break;
-    case 'frost': /* 얼음 왕관 + 어깨 수정 */
-      for(i=0;i<6;i++){var an=i/6*6.283;cone(0.22,0.9,'#e1f5fe',5,Math.cos(an)*0.75,6.3,Math.sin(an)*0.75);}
-      cone(0.4,1.1,A,5,-1.5,4.5,0);cone(0.4,1.1,A,5,1.5,4.5,0);cone(0.5,1.8,'#e1f5fe',5,0,4.2,-0.9,-0.6);break;
-    case 'monk': /* 상투 + 머리띠 + 허리띠 */
-      orb(0.42,o.hair||'#3b2f25',0,6.25,-0.1);bx(1.95,0.25,1.95,A,0,5.5,0);bx(0.22,0.1,1,A,0.2,5.4,-1.4,0.4);
-      bx(2.06,0.35,1.06,T,0,2.25,0);bx(0.3,0.9,0.12,T,-0.5,1.75,0.56);cyl(0.1,0.1,4,'#8d6e63',0,3.3,-0.7,0,0.55);break;
-    case 'robot': /* 안테나 + 가슴 계기판 + 등 탱크 */
-      bx(2.05,0.3,2.05,'#90a4ae',0,5.98,0);cyl(0.07,0.07,0.9,'#cfd8dc',0,6.55,0);orb(0.2,'#ff5252',0,7.05,0);
-      cyl(0.3,0.3,0.3,'#90a4ae',-1.1,4.95,0,0,Math.PI/2);cyl(0.3,0.3,0.3,'#90a4ae',1.1,4.95,0,0,Math.PI/2);
-      bx(1.3,0.9,0.14,'#263238',0,3.2,0.55);orb(0.13,'#69f0ae',-0.35,3.3,0.63);orb(0.13,'#ffd740',0,3.3,0.63);orb(0.13,'#ff5252',0.35,3.3,0.63);
-      cyl(0.5,0.5,1.8,'#78909c',0,3.1,-0.85);break;
-    case 'revenant': /* 높은 옷깃 망토 + 어깨 가시 */
-      bx(2.3,1.1,0.25,S,0,4.6,-0.75);bx(0.25,1.1,0.9,S,-1.1,4.6,-0.35);bx(0.25,1.1,0.9,S,1.1,4.6,-0.35);
-      bx(2.5,3.1,0.2,'#101a19',0,2.5,-0.78);bx(2.5,0.2,0.22,A,0,1,-0.78);
-      cone(0.3,1,A,4,-1.6,4.4,0,0,0.5);cone(0.3,1,A,4,1.6,4.4,0,0,-0.5);break;
-  }
-}
 function makePlayerChar(o){
   o=o||{};var SKIN=o.skin||'#c99a7a',HAIR=o.hair||'#28262c',SUIT=o.suit||'#1d2233',STRIPE=o.stripe||'#343c58',SHIRT=o.shirt||'#cfe2f1',COLLAR=o.collar||'#e8f1f8',TIE=o.tie||'#5aa8d0',KNOT=o.knot||'#4b8db2',FACE=o.face||window.__PFACE__;
   var ch=makeChar({skin:SKIN,shirt:SUIT,pants:SUIT,sock:SUIT,hair:HAIR,face:'happy'});
@@ -1533,7 +1476,6 @@ function makePlayerChar(o){
     l.children[0].material=suitMat();l.children[1].material=suitMat();
     var shoe=box(1.05,0.3,1.3,'#0c0c0f');shoe.position.set(0,-1.85,0.15);l.add(shoe);
   });
-  if(o.gear)gearUp(ch,o.gear,o);
   return ch;
 }
 var pChar=makePlayerChar();
@@ -2424,30 +2366,14 @@ function updateSkills(dt){
 var SKINS=[
   {name:'브론즈 캐릭터',ic:'🥉',g:0,price:3000000,mult:2,color:'#cd7f32',o:{skin:'#d1aa92',hair:'#35312a',suit:'#192634',stripe:'#2b3d52',shirt:'#f1f4f7',collar:'#ffffff',tie:'#c9788f',knot:'#a85a72'}},
   {name:'실버 캐릭터',ic:'🥈',g:1,price:30000000,mult:4,color:'#d5dbe2',o:{skin:'#e3b2a1',hair:'#6a6368',suit:'#2c3744',stripe:'#46566a',shirt:'#c9ddee',collar:'#dbe9f5',tie:'#2a2d4a',knot:'#1c1f38'}},
-  {name:'골드 캐릭터',ic:'🥇',g:2,price:300000000,mult:8,color:'#ffc107',o:{skin:'#fbcba5',hair:'#211a15',suit:'#2a3631',stripe:'#42564d',shirt:'#dfe9ee',collar:'#f0f6f8',tie:'#b6bf9f',knot:'#98a283'}},
-  /* 🎮 롤 챔피언 모티브 (상점 → 🎭 캐릭터) · 러닝머신 배율 + 던전 패시브 */
-  {name:'가렌',ic:'🛡️',g:1,price:2e9,mult:10,color:'#5c8dd6',ds:'🛡️ 데마시아의 힘: 던전 체력 +40% · 받는 피해 -10% · 매초 체력 1% 회복',f:function(S){S.hp*=1.4;S.dr+=0.1;S.regen+=0.01;},o:{gear:'knight',skin:'#e8c1a0',hair:'#3b2a1e',suit:'#2b4a85',stripe:'#c9a43b',shirt:'#e9edf2',collar:'#ffffff',tie:'#c9a43b',knot:'#a8842a'}},
-  {name:'럭스',ic:'✨',g:1,price:3e9,mult:10,color:'#fff59d',ds:'✨ 빛의 마법: 2초마다 가까운 적에게 빛 공격(200%) · 공격 범위 +15%',f:function(S){S.bolt+=1;S.range*=1.15;},o:{gear:'wizard',skin:'#f6d5bd',hair:'#f2d16b',suit:'#eef1f6',stripe:'#d4b04a',shirt:'#fff8e1',collar:'#ffffff',tie:'#3f6fd1',knot:'#2f56a8'}},
-  {name:'이즈리얼',ic:'🔮',g:2,price:8e9,mult:12,color:'#4fc3f7',ds:'🔮 비전 이동: 이동 속도 +20% · 회피 +10% · 2초마다 신비한 화살(200%)',f:function(S){S.move*=1.2;S.dodge+=0.1;S.bolt+=1;},o:{gear:'explorer',skin:'#f1c9a8',hair:'#e0b04a',suit:'#2d4f7c',stripe:'#6fa8dc',shirt:'#f4e7d0',collar:'#fff4e0',tie:'#c58b2a',knot:'#9c6b1c'}},
-  {name:'그레이브즈',ic:'💨',g:2,price:2e10,mult:14,color:'#a1887f',ds:'💨 산탄 세례: 공격력 +25% · 공격 범위 +20% · 치명타 +10%',f:function(S){S.dmg*=1.25;S.range*=1.2;S.crit+=0.1;},o:{gear:'gunslinger',skin:'#d8a985',hair:'#2a2a2a',suit:'#4e3b2c',stripe:'#6d5643',shirt:'#c9b79c',collar:'#ddd0bb',tie:'#7a2e1f',knot:'#5c2014'}},
-  {name:'징크스',ic:'💣',g:2,price:4e10,mult:16,color:'#f06292',ds:'💣 신난다!: 공격 쿨타임 -15% · 이동 속도 +10% · 몹 처치 시 체력 1% 회복',f:function(S){S.cd*=0.85;S.move*=1.1;S.killHeal+=0.01;},o:{gear:'punk',skin:'#f3d3c4',hair:'#2f7fd8',suit:'#3d2a4f',stripe:'#e91e63',shirt:'#f8bbd0',collar:'#fce4ec',tie:'#2f7fd8',knot:'#1f5fa8'}},
-  {name:'다리우스',ic:'🪓',g:3,price:1e11,mult:18,color:'#e53935',ds:'🪓 녹서스의 단두대: 체력 15% 미만 잡몹 즉시 처치 · 내 체력이 낮을수록 공격력 최대 +50% · 체력 +20%',f:function(S){S.exec=Math.max(S.exec,0.15);S.berserk+=0.5;S.hp*=1.2;},o:{gear:'barbarian',skin:'#d9a988',hair:'#1c1c1c',suit:'#3a1a1a',stripe:'#b71c1c',shirt:'#5d4037',collar:'#8d6e63',tie:'#b71c1c',knot:'#7f0000'}},
-  {name:'아지르',ic:'🏜️',g:3,price:2.5e11,mult:20,color:'#ffca28',ds:'🏜️ 모래 병사: 내 주변을 도는 병사 칼날(공격력 60%) · 공격력 +15%',f:function(S){S.orbit+=1;S.dmg*=1.15;},o:{gear:'pharaoh',skin:'#c79a6b',hair:'#e0b84a',suit:'#c49a3a',stripe:'#1e8c84',shirt:'#f3e2b3',collar:'#fff3cf',tie:'#1e8c84',knot:'#156a64'}},
-  {name:'제드',ic:'🥷',g:3,price:6e11,mult:24,color:'#90a4ae',ds:'🥷 그림자 분신: 공격할 때마다 70% 추가타 · 치명타 +15% · 치명타 피해 +20%',f:function(S){S.double=1;S.crit+=0.15;S.critMul+=0.2;},o:{gear:'ninja',skin:'#e2b896',hair:'#1a1a1a',suit:'#1b1f24',stripe:'#b71c1c',shirt:'#37474f',collar:'#546e7a',tie:'#b71c1c',knot:'#7f0000'}},
-  {name:'야스오',ic:'🌪️',g:4,price:1.5e12,mult:28,color:'#64b5f6',ds:'🌪️ 바람의 검: 치명타 확률 +35% (대신 치명타 피해 -10%) · 바람 장막 회피 +15% · 이동 +10%',f:function(S){S.crit+=0.35;S.critMul-=0.1;S.dodge+=0.15;S.move*=1.1;},o:{gear:'ronin',skin:'#e3b48e',hair:'#2b2320',suit:'#2c4a6e',stripe:'#8fb3d9',shirt:'#e9e3d5',collar:'#f5f0e4',tie:'#8b1e1e',knot:'#651515'}},
-  {name:'요네',ic:'👻',g:4,price:4e12,mult:32,color:'#b388ff',ds:'👻 영혼 가르기: 치명타 +25% · 치명타 피해 +25% · 흡혈 1% · 2단 점프',f:function(S){S.crit+=0.25;S.critMul+=0.25;S.vamp+=0.01;S.dj+=1;},o:{gear:'spirit',skin:'#e0b08c',hair:'#3a2f3f',suit:'#2b2337',stripe:'#7e57c2',shirt:'#d7ccc8',collar:'#efebe9',tie:'#c62828',knot:'#8e0000'}},
-  {name:'애니비아',ic:'❄️',g:2,price:1.2e10,mult:13,color:'#81d4fa',ds:'🥚 부활의 알: 쓰러지면 1번 부활 · 던전 체력 +15%',f:function(S){S.revive+=1;S.hp*=1.15;},o:{gear:'frost',skin:'#dbeaf5',hair:'#4fc3f7',suit:'#1e5a8a',stripe:'#81d4fa',shirt:'#e1f5fe',collar:'#ffffff',tie:'#4fc3f7',knot:'#0288d1'}},
-  {name:'마스터 이',ic:'🥽',g:3,price:3e11,mult:22,color:'#c6ff00',ds:'⚔️ 2연타: 공격할 때마다 70% 추가타 · 공격 쿨타임 -10%',f:function(S){S.double=1;S.cd*=0.9;},o:{gear:'monk',skin:'#e2b896',hair:'#3b2f25',suit:'#4a5d23',stripe:'#c6ff00',shirt:'#d7ccc8',collar:'#efebe9',tie:'#ffd54a',knot:'#c9a227'}},
-  {name:'블리츠크랭크',ic:'🤖',g:2,price:1e10,mult:12,color:'#ffd740',ds:'🤖 마나 보호막: 8초마다 체력 20% 보호막 · 받는 피해 -10%',f:function(S){S.shield+=0.2;S.dr+=0.1;},o:{gear:'robot',skin:'#d9b24c',hair:'#8d6e2f',suit:'#c79a2b',stripe:'#6d4c1b',shirt:'#ffe082',collar:'#fff3c4',tie:'#b3541e',knot:'#8a3c12'}},
-  {name:'비에고',ic:'👑',g:4,price:8e12,mult:36,color:'#64ffda',ds:'👑 몰락한 왕: 흡혈 1.5% · 공격력 +20% · R로 잡았던 보스로 변신',f:function(S){S.vamp+=0.015;S.dmg*=1.2;},o:{gear:'revenant',skin:'#cfd8dc',hair:'#eceff1',suit:'#1c2b2a',stripe:'#1de9b6',shirt:'#37474f',collar:'#546e7a',tie:'#1de9b6',knot:'#00bfa5'}}
+  {name:'골드 캐릭터',ic:'🥇',g:2,price:300000000,mult:8,color:'#ffc107',o:{skin:'#fbcba5',hair:'#211a15',suit:'#2a3631',stripe:'#42564d',shirt:'#dfe9ee',collar:'#f0f6f8',tie:'#b6bf9f',knot:'#98a283'}}
 ];
 function skinMult(){return G.skin>=0?SKINS[G.skin].mult:1;}
 var skinPanel=document.createElement('div');
-skinPanel.innerHTML='<div class="row" style="border-top:0"><button id="skinOpenStore" style="flex:1;background:#6a1b9a">🎭 캐릭터는 🛍️ 상점 → 캐릭터 탭에서!</button></div>';
+skinPanel.innerHTML='<h3>🎭 캐릭터 스킨</h3><div class="row" style="border-top:0"><button id="skinDefault" style="flex:1;background:#546e7a">기본스킨으로 변경</button></div>';
 $('shopRows').parentNode.insertBefore(skinPanel,$('shopRows'));
 var skinNm=[],skinBtn=[];
 SKINS.forEach(function(s,i){
-  if(true)return; /* 캐릭터는 상점 모달의 🎭 캐릭터 탭으로 옮겼어요 */
   var row=document.createElement('div');row.className='row';
   var nm=document.createElement('div');nm.className='nm';
   nm.innerHTML='<b style="color:'+s.color+'">'+s.name+'</b><small>러닝머신 속도 획득 ×'+s.mult+'</small>';
@@ -2456,8 +2382,7 @@ SKINS.forEach(function(s,i){
 });
 var skinHead=document.createElement('h3');skinHead.style.marginTop='10px';skinHead.textContent='🏃 러닝머신';
 skinPanel.appendChild(skinHead);
-function skinDefault(){if(G.skin===-1)return;G.skin=-1;sfx.buy();toast('🧍 기본 캐릭터로 변경!','good');refreshSkins();save();}
-$('skinOpenStore').addEventListener('click',function(){this.blur();storeTab='char';storeOpenFn();});
+$('skinDefault').addEventListener('click',function(){if(G.skin===-1)return;G.skin=-1;sfx.buy();toast('🧍 기본 스킨으로 변경!','good');refreshSkins();save();});
 function skinClick(i){
   if(!G.owned[i]){
     if(G.money<SKINS[i].price){sfx.deny();return;}
@@ -2467,8 +2392,7 @@ function skinClick(i){
   G.skin=i;sfx.buy();refreshSkins();save();
 }
 function refreshSkins(){
-  if(typeof storeOpen!=='undefined'&&storeOpen&&storeTab==='char')storeRender();
-  if(true)return;
+  if(!window.__SKINIMG__||typeof skinBtn==='undefined')return;
   skinBtn.forEach(function(b,i){
     var own=G.owned[i],cur=G.skin===i;
     b.textContent=cur?'✔ 착용중':own?'착용':'💰 '+fmt(SKINS[i].price);
@@ -2656,232 +2580,6 @@ function toggleDev(){
   }else toast('🛠️ 개발자 모드 OFF (돈·속도 고정 해제)','warn');
 }
 /* =========================================================
-   🎮 챔피언 QWER 스킬 (던전 전용)
-   - 던전: 마우스 우클릭 = 그 자리로 이동 · 좌클릭 드래그 = 시점 · 방향키 이동
-   - 공격은 가까운 적에게 자동 · Q W E R = 캐릭터 스킬 · H = 체력 포션
-   - 스킬은 마우스 커서 방향으로 나가요 (커서가 없으면 가장 가까운 적)
-   ========================================================= */
-var MW={x:0,z:0,ok:false,cx:0,cy:0};
-function scrToGround(cx,cy){
-  try{
-    var r=cv.getBoundingClientRect(),v=new THREE.Vector3(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1,0.5);
-    v.unproject(camera);v.sub(camera.position);if(!(Math.abs(v.y)>1e-6))return null;
-    var t=(0-camera.position.y)/v.y;if(!(t>0))return null;
-    var x=camera.position.x+v.x*t,z=camera.position.z+v.z*t;if(!isFinite(x)||!isFinite(z))return null;return {x:x,z:z};
-  }catch(e){return null;}
-}
-function mwUpdate(){if(!MW.cx&&!MW.cy)return;var g=scrToGround(MW.cx,MW.cy);if(g){MW.x=g.x;MW.z=g.z;MW.ok=true;}}
-function chAim(maxD){
-  var t=null;
-  if(!isTouch&&!MAC.on){mwUpdate();if(MW.ok)t={x:MW.x,z:MW.z};}
-  if(!t){var e=augTargets(1,70)[0];t=e?{x:e.x,z:e.z}:{x:P.x+Math.sin(P.face)*12,z:P.z+Math.cos(P.face)*12};}
-  var dx=t.x-P.x,dz=t.z-P.z,L=Math.hypot(dx,dz)||1;dx/=L;dz/=L;
-  if(maxD&&L>maxD){t={x:P.x+dx*maxD,z:P.z+dz*maxD};L=maxD;}
-  P.face=Math.atan2(dx,dz);
-  return {x:t.x,z:t.z,dx:dx,dz:dz,d:L};
-}
-function chD(m){return augDmg(true)*m;}
-function chAoe(x,z,r,m,col,pw){fxBoom(x,z,r,col||'#ffffff',pw||0.6);augHit(x,z,chD(m),r);}
-function chLine(a,len,w,m,col){
-  var n=0;augTargets(80,len+8).forEach(function(t){var px=t.x-P.x,pz=t.z-P.z,al=px*a.dx+pz*a.dz,pp=Math.abs(px*a.dz-pz*a.dx);if(al>-2&&al<len+4&&pp<w+3){augHit(t.x,t.z,chD(m),0.6);n++;}});
-  tracer(P.x,P.z,P.x+a.dx*len,P.z+a.dz*len,col||'#ffffff',3);return n;
-}
-function chCone(a,range,ang,m,col){
-  var n=0;augTargets(80,range+6).forEach(function(t){var px=t.x-P.x,pz=t.z-P.z,d=Math.hypot(px,pz)||1,c=(px*a.dx+pz*a.dz)/d;if(d<4||c>Math.cos(ang)){augHit(t.x,t.z,chD(m),0.6);n++;}});
-  for(var i=0;i<20*fxMul;i++){var an=Math.atan2(a.dx,a.dz)+rand(-ang,ang),sp=rand(20,40);emit(P.x,2,P.z,Math.sin(an)*sp,rand(0,3),Math.cos(an)*sp,col||'#ffffff',0.35,0);}
-  return n;
-}
-function chDash(a,dist,m,col){
-  if(m)chLine(a,dist,3,m,col);
-  var tx=P.x+a.dx*dist,tz=P.z+a.dz*dist,sx=P.x,sz=P.z,tm=0;DG.inv=Math.max(DG.inv,0.35);
-  addH({u:function(dt){tm+=dt;var k=Math.min(1,tm/0.18);P.x=sx+(tx-sx)*k;P.z=sz+(tz-sz)*k;clampP();emit(P.x,2,P.z,0,1,0,col||'#ffffff',0.3,0);return k>=1;},x:function(){}});
-}
-function chBlink(x,z,col){burst(P.x,2,P.z,col||'#b388ff',16,6);P.x=x;P.z=z;clampP();burst(P.x,2,P.z,col||'#b388ff',20,7);DG.inv=Math.max(DG.inv,0.3);}
-function chZone(x,z,r,m,n,iv,col,follow){
-  var k=0,tm=iv;addH({u:function(dt){tm+=dt;if(tm>=iv){tm=0;k++;var px=follow?P.x:x,pz=follow?P.z:z;chAoe(px,pz,r,m,col,0.35);}return k>=n||!DG.on||DG.over;},x:function(){}});
-}
-function chShield(f){DG.shield=Math.max(DG.shield,DG.max*f);floatText('🛡️ 보호막',VW()/2,VH()*0.42,0,'spd');}
-function chBuff(d,dm,s,sm){if(d){SB.dmg=Math.max(SB.dmg,d);SB.dmgM=Math.max(SB.dmg>0?SB.dmgM:1,dm);}if(s){SB.spd=Math.max(SB.spd,s);SB.spdM=Math.max(SB.spd>0?SB.spdM:1,sm);}}
-function chClearProj(r){var n=0;for(var i=DG.pr.length-1;i>=0;i--){var q=DG.pr[i];if(Math.hypot(q.s.position.x-P.x,q.s.position.z-P.z)<r){q.life=0;q.s.position.y=-50;n++;}}return n;}
-function chNearest(maxD){var b=DG.boss,best=null,bd=maxD;
-  if(b){var d=Math.hypot(b.g.position.x-P.x,b.g.position.z-P.z);if(d<maxD+8)return {boss:b,x:b.g.position.x,z:b.g.position.z,d:d};}
-  DG.mobs.forEach(function(o){var d=Math.hypot(o.g.position.x-P.x,o.g.position.z-P.z);if(d<bd){bd=d;best={mob:o,x:o.g.position.x,z:o.g.position.z,d:d};}});return best;}
-
-/* 캐릭터별 스킬 (SKINS 번호 → [Q,W,E,R]) */
-var CHS={
-  3:[ /* 가렌 */
-    {ic:'⚔️',nm:'결정타',cd:6,ds:'앞으로 돌진하며 베기 (500%)',f:function(){var a=chAim();chDash(a,10,5,'#ffd54a');}},
-    {ic:'🛡️',nm:'용기',cd:14,ds:'체력 30% 보호막',f:function(){chShield(0.3);burst(P.x,3,P.z,'#ffd54a',24,7);}},
-    {ic:'🌀',nm:'심판',cd:9,ds:'3초 동안 회전 베기 (120% × 10번)',f:function(){chZone(0,0,11,1.2,10,0.3,'#ffe082',true);}},
-    {ic:'🗡️',nm:'데마시아의 정의',cd:45,ds:'거대한 검을 내리꽂기 (2000%)',f:function(){var t=chNearest(30)||chAim(25);chAoe(t.x,t.z,9,20,'#ffd54a',1.2);shk=Math.max(shk,3);}}],
-  4:[ /* 럭스 */
-    {ic:'💫',nm:'빛의 속박',cd:6,ds:'빛의 구체 일직선 (500%)',f:function(){chLine(chAim(),40,2.5,5,'#fff59d');}},
-    {ic:'🔷',nm:'프리즘 보호막',cd:12,ds:'체력 25% 보호막',f:function(){chShield(0.25);}},
-    {ic:'🌟',nm:'광채 특이점',cd:8,ds:'커서 위치에 빛 폭발 (600%)',f:function(){var a=chAim(40);after(0.5,function(){chAoe(a.x,a.z,10,6,'#fff59d',0.9);});}},
-    {ic:'🌈',nm:'최후의 섬광',cd:40,ds:'아주 긴 레이저 (2200%)',f:function(){chLine(chAim(),75,4,22,'#fffde7');shk=Math.max(shk,2.5);}}],
-  5:[ /* 이즈리얼 */
-    {ic:'➶',nm:'신비한 화살',cd:4,ds:'화살 (500%) · 맞히면 다른 스킬 쿨타임 -1초',f:function(){if(chLine(chAim(),45,1.5,5,'#80d8ff'))for(var k=0;k<4;k++)CHCD[k]=Math.max(0,(CHCD[k]||0)-1);}},
-    {ic:'🔵',nm:'정수의 흐름',cd:9,ds:'구체 (300%) + 5초 동안 공격력 +30%',f:function(){chLine(chAim(),45,2,3,'#ffd740');chBuff(5,1.3);}},
-    {ic:'✨',nm:'비전 이동',cd:10,ds:'커서 쪽으로 순간이동 + 가까운 적 공격 (400%)',f:function(){var a=chAim(22);chBlink(a.x,a.z,'#ffd740');var t=chNearest(30);if(t){tracer(P.x,P.z,t.x,t.z,'#ffd740',2);augHit(t.x,t.z,chD(4),0.6);}}},
-    {ic:'☄️',nm:'정조준 일격',cd:40,ds:'맵을 가로지르는 에너지 파동 (2000%)',f:function(){chLine(chAim(),130,5,20,'#ffe57f');}}],
-  6:[ /* 그레이브즈 */
-    {ic:'💥',nm:'막다른 길',cd:7,ds:'탄환 (400%) → 끝에서 폭발 (400%)',f:function(){var a=chAim();chLine(a,30,3,4,'#ffab40');var ex=P.x+a.dx*30,ez=P.z+a.dz*30;after(0.6,function(){chAoe(ex,ez,8,4,'#ff6d00');});}},
-    {ic:'🌫️',nm:'연막탄',cd:12,ds:'커서 위치 연막 폭발 (300%) + 1초 무적',f:function(){var a=chAim(35);chAoe(a.x,a.z,10,3,'#90a4ae');DG.inv=Math.max(DG.inv,1);}},
-    {ic:'💨',nm:'급속 이동',cd:8,ds:'돌진 + 체력 15% 보호막',f:function(){chDash(chAim(),15,0);chShield(0.15);}},
-    {ic:'🔫',nm:'기간 테러',cd:45,ds:'대포 (1600%) → 끝에서 폭발 (1000%)',f:function(){var a=chAim();chLine(a,40,4,16,'#ff9100');var ex=P.x+a.dx*40,ez=P.z+a.dz*40;after(0.3,function(){chAoe(ex,ez,12,10,'#ff3d00',1.1);});}}],
-  7:[ /* 징크스 */
-    {ic:'🔁',nm:'휙휙!',cd:10,ds:'6초 동안 공격력 +40%',f:function(){chBuff(6,1.4);}},
-    {ic:'⚡',nm:'빠직!',cd:7,ds:'전기 충격파 (600%)',f:function(){chLine(chAim(),60,2,6,'#f48fb1');}},
-    {ic:'🦷',nm:'와작와작 뻥!',cd:12,ds:'커서에 덫 3개 → 폭발 (400% × 3)',f:function(){var a=chAim(35);[0,2.1,4.2].forEach(function(o){var x=a.x+Math.cos(o)*5,z=a.z+Math.sin(o)*5;after(0.8,function(){chAoe(x,z,6,4,'#ff4081');});});}},
-    {ic:'🚀',nm:'초강력 초토화 로켓!',cd:45,ds:'로켓 → 대폭발 (2200%)',f:function(){var t=chNearest(90)||chAim(60);tracer(P.x,P.z,t.x,t.z,'#ff4081',3);after(0.4,function(){chAoe(t.x,t.z,14,22,'#ff1744',1.3);shk=Math.max(shk,3);});}}],
-  8:[ /* 다리우스 */
-    {ic:'🪓',nm:'학살',cd:8,ds:'도끼 휘두르기 (500%) · 맞힌 적 1명당 체력 2% 회복',f:function(){var n=augTargets(40,13).length;chAoe(P.x,P.z,13,5,'#e53935');augHeal(0.02*Math.min(6,n));}},
-    {ic:'🔨',nm:'마비시키는 일격',cd:5,ds:'강타 (400%)',f:function(){chAoe(P.x,P.z,9,4,'#ff8a80');}},
-    {ic:'⛓️',nm:'포획',cd:10,ds:'앞쪽 부채꼴 갈고리 (300%) + 잡몹 끌어오기',f:function(){var a=chAim();chCone(a,25,0.6,3,'#b71c1c');DG.mobs.forEach(function(o){var px=o.g.position.x-P.x,pz=o.g.position.z-P.z,d=Math.hypot(px,pz)||1;if(d<25&&(px*a.dx+pz*a.dz)/d>Math.cos(0.6)){o.g.position.x=P.x+px/d*5;o.g.position.z=P.z+pz/d*5;}});}},
-    {ic:'⚖️',nm:'녹서스의 단두대',cd:40,ds:'가장 가까운 적 처형 (2500%) · 체력 50% 미만 잡몹은 즉사 + 쿨타임 초기화',f:function(){var t=chNearest(25);if(!t){toast('가까운 적이 없어요','warn');return 'x';}
-      chBlink(t.x-Math.sin(P.face)*3,t.z-Math.cos(P.face)*3,'#e53935');fxBoom(t.x,t.z,6,'#ff1744',1);
-      if(t.mob&&hostSide()&&t.mob.hp/t.mob.max<0.5){augHit(t.x,t.z,t.mob.hp*2+1,0.6);return 'reset';}augHit(t.x,t.z,chD(25),0.6);}}],
-  9:[ /* 아지르 */
-    {ic:'🏜️',nm:'사막의 맹습',cd:6,ds:'커서 위치에 모래 병사 돌격 (500%)',f:function(){var a=chAim(35);chAoe(a.x,a.z,9,5,'#ffca28');}},
-    {ic:'🛕',nm:'일어나라!',cd:8,ds:'커서 위치에 병사 소환 · 2.5초 동안 공격 (150% × 6번)',f:function(){var a=chAim(30);chZone(a.x,a.z,7,1.5,6,0.4,'#ffe082');}},
-    {ic:'💨',nm:'황제의 진영',cd:12,ds:'커서 쪽으로 돌진 + 체력 20% 보호막',f:function(){var a=chAim(25);chDash(a,a.d,2,'#ffca28');chShield(0.2);}},
-    {ic:'🧱',nm:'황제의 방패',cd:45,ds:'앞쪽으로 병사 벽 돌격 (1800%)',f:function(){chCone(chAim(),22,1.2,18,'#ffd54a');shk=Math.max(shk,2);}}],
-  10:[ /* 제드 */
-    {ic:'✴️',nm:'예리한 표창',cd:5,ds:'표창 3개 (400% × 3)',f:function(){var a=chAim();[-0.3,0,0.3].forEach(function(o){var an=Math.atan2(a.dx,a.dz)+o;chLine({dx:Math.sin(an),dz:Math.cos(an)},40,1.5,4,'#cfd8dc');});}},
-    {ic:'👤',nm:'살아있는 그림자',cd:10,ds:'커서 쪽으로 그림자 순간이동',f:function(){var a=chAim(18);chBlink(a.x,a.z,'#455a64');}},
-    {ic:'🌀',nm:'그림자 베기',cd:5,ds:'주변 베기 (500%)',f:function(){chAoe(P.x,P.z,12,5,'#90a4ae');}},
-    {ic:'☠️',nm:'죽음의 표식',cd:45,ds:'가장 가까운 적 뒤로 이동 → 1.5초 뒤 표식 폭발 (3000%)',f:function(){var t=chNearest(40);if(!t){toast('가까운 적이 없어요','warn');return 'x';}chBlink(t.x+2,t.z+2,'#263238');DG.inv=Math.max(DG.inv,1);var tg=t.boss||t.mob;
-      after(1.5,function(){if(!DG.on)return;var p=tg.g.position;fxBoom(p.x,p.z,7,'#d50000',1.2);augHit(p.x,p.z,chD(30),0.6);});}}],
-  11:[ /* 야스오 */
-    {ic:'🌪️',nm:'강철 폭풍',cd:3,ds:'찌르기 (400%) · 3번째는 회오리 (600%, 아주 김)',f:function(){CHX.ys=(CHX.ys||0)+1;var a=chAim();if(CHX.ys>=3){CHX.ys=0;chLine(a,55,3,6,'#b3e5fc');}else chLine(a,24,2,4,'#e1f5fe');}},
-    {ic:'🌬️',nm:'바람 장막',cd:16,ds:'주변 투사체 전부 막기 + 1.5초 무적',f:function(){var n=chClearProj(30);DG.inv=Math.max(DG.inv,1.5);fxBoom(P.x,P.z,14,'#b3e5fc',0.6);if(n)floatText('🌬️ '+n+'개 막음',VW()/2,VH()*0.42,0,'spd');}},
-    {ic:'💨',nm:'질풍검',cd:2.5,ds:'적을 통과하며 돌진 (300%)',f:function(){chDash(chAim(),14,3,'#e1f5fe');}},
-    {ic:'🍃',nm:'최후의 숨결',cd:40,ds:'가장 가까운 적에게 순간이동 + 폭풍 베기 (2000%)',f:function(){var t=chNearest(40);if(!t){toast('가까운 적이 없어요','warn');return 'x';}chBlink(t.x+3,t.z,'#81d4fa');chAoe(t.x,t.z,12,20,'#b3e5fc',1.2);DG.inv=Math.max(DG.inv,1);}}],
-  12:[ /* 요네 */
-    {ic:'🗡️',nm:'필멸의 검',cd:3,ds:'찌르기 (400%) · 3번째는 돌진 베기 (500%)',f:function(){CHX.yn=(CHX.yn||0)+1;var a=chAim();if(CHX.yn>=3){CHX.yn=0;chDash(a,16,5,'#b388ff');}else chLine(a,24,2,4,'#d1c4e9');}},
-    {ic:'⚔️',nm:'영혼 쪼개기',cd:9,ds:'부채꼴 베기 (400%) + 체력 20% 보호막',f:function(){chCone(chAim(),18,1,4,'#9575cd');chShield(0.2);}},
-    {ic:'👻',nm:'영혼 해방',cd:12,ds:'5초 동안 공격력 +30% · 이동 +30%',f:function(){chBuff(5,1.3,5,1.3);burst(P.x,3,P.z,'#b388ff',30,8);}},
-    {ic:'🌑',nm:'운명 봉인',cd:40,ds:'커서 쪽으로 긴 돌진 베기 (1800%)',f:function(){var a=chAim(32);chDash(a,a.d,18,'#7c4dff');}}],
-  13:[ /* 애니비아 */
-    {ic:'❄️',nm:'얼음 폭발',cd:7,ds:'얼음 구체 (300%) → 끝에서 폭발 (600%)',f:function(){var a=chAim(40);chLine(a,a.d,2,3,'#b3e5fc');after(0.4,function(){chAoe(a.x,a.z,8,6,'#e1f5fe');});}},
-    {ic:'🧊',nm:'결정화',cd:14,ds:'얼음벽: 주변 투사체 막기 + 1초 무적',f:function(){chClearProj(25);DG.inv=Math.max(DG.inv,1);fxBoom(P.x,P.z,12,'#b3e5fc',0.6);}},
-    {ic:'🥶',nm:'동상',cd:5,ds:'가장 가까운 적에게 얼음 화살 (700%)',f:function(){var t=chNearest(40);if(!t)return 'x';tracer(P.x,P.z,t.x,t.z,'#80d8ff',2);augHit(t.x,t.z,chD(7),0.6);}},
-    {ic:'🌨️',nm:'빙하 폭풍',cd:40,ds:'커서 위치에 6초 눈보라 (200% × 15번)',f:function(){var a=chAim(35);chZone(a.x,a.z,14,2,15,0.4,'#e1f5fe');}}],
-  14:[ /* 마스터 이 */
-    {ic:'⚡',nm:'일격필살',cd:8,ds:'적 4명 사이를 순간이동하며 베기 (500% × 4) · 그동안 무적',f:function(){var ts=augTargets(4,35);if(!ts.length)return 'x';DG.inv=Math.max(DG.inv,0.9);ts.forEach(function(t,i){after(i*0.15,function(){if(!DG.on)return;chBlink(t.x+1,t.z+1,'#c6ff00');augHit(t.x,t.z,chD(5),0.6);});});}},
-    {ic:'🧘',nm:'명상',cd:18,ds:'2초 동안 체력 30% 회복 · 받는 피해 크게 감소',f:function(){DG.inv=Math.max(DG.inv,1.2);var k=0;addH({u:function(){k++;augHeal(0.3/20);return k>=20;},x:function(){}});}},
-    {ic:'🗡️',nm:'우주류 검술',cd:12,ds:'6초 동안 공격력 +60%',f:function(){chBuff(6,1.6);}},
-    {ic:'🔥',nm:'최강의 검사',cd:45,ds:'8초 동안 이동 +40% · 공격력 +30%',f:function(){chBuff(8,1.3,8,1.4);burst(P.x,4,P.z,'#c6ff00',40,10);}}],
-  15:[ /* 블리츠크랭크 */
-    {ic:'🦾',nm:'로켓 손',cd:8,ds:'손 발사 (600%) · 맞은 잡몹 끌어오기',f:function(){var a=chAim();chLine(a,45,2,6,'#ffd740');var t=null,bd=1e9;DG.mobs.forEach(function(o){var px=o.g.position.x-P.x,pz=o.g.position.z-P.z,al=px*a.dx+pz*a.dz,pp=Math.abs(px*a.dz-pz*a.dx);if(al>0&&al<47&&pp<4&&al<bd){bd=al;t=o;}});if(t){t.g.position.x=P.x+a.dx*4;t.g.position.z=P.z+a.dz*4;}}},
-    {ic:'⚙️',nm:'폭주',cd:12,ds:'4초 동안 이동 +60%',f:function(){chBuff(0,0,4,1.6);}},
-    {ic:'👊',nm:'강철 주먹',cd:5,ds:'주변 강타 (600%)',f:function(){chAoe(P.x,P.z,8,6,'#ffd740');}},
-    {ic:'⚡',nm:'정전기장',cd:40,ds:'넓은 전기 폭발 (1200%)',f:function(){chAoe(P.x,P.z,20,12,'#ffff00',1.2);shk=Math.max(shk,2.5);}}],
-  16:[ /* 비에고 */
-    {ic:'🗡️',nm:'몰락한 왕의 검',cd:4,ds:'찌르기 (500%)',f:function(){chLine(chAim(),20,3,5,'#64ffda');}},
-    {ic:'🌫️',nm:'망령의 포옹',cd:9,ds:'안개 돌진 (300%)',f:function(){chDash(chAim(),15,3,'#1de9b6');}},
-    {ic:'🌑',nm:'안개 습격',cd:14,ds:'4초 동안 투명 · 공격력 +30%',f:function(){SB.invis=4;DG.inv=Math.max(DG.inv,1);chBuff(4,1.3);}},
-    {ic:'👑',nm:'빙의',cd:60,ds:'지금까지 잡은 보스 중 하나로 12초 변신! 변신 중 Q·W·E = 그 보스의 공격 · 공격력 +50%',f:function(){return vgStart();}}]
-};
-var CHCD=[0,0,0,0],CHX={},CH_KEYS=['Q','W','E','R'];
-function chList(){if(VG.on)return VG.sk;return G.skin>=0?CHS[G.skin]:null;}
-function chCast(k){
-  if(!DG.on||DG.over||!started||modalOpen)return;
-  var L=chList();if(!L){toast('🎭 이 캐릭터는 QWER 스킬이 없어요 (상점 → 캐릭터)','warn');return;}
-  var s=L[k];if(!s)return;
-  if(VG.on&&k===3){vgEnd();return;}
-  if(CHCD[k]>0){toast(s.ic+' '+s.nm+' 쿨타임 '+Math.ceil(CHCD[k])+'초','warn');return;}
-  if(P.stun>0)return;
-  var r=s.f();if(r==='x')return;
-  CHCD[k]=r==='reset'?0.5:s.cd*(DG.S.cd<1?Math.max(0.6,DG.S.cd):1);
-  floatText(s.ic+' '+s.nm,VW()/2,VH()*0.36,0,'spd');
-  if(AC)tone(520+k*90,0.1,'triangle',0.08,260);
-  chBarKey='';
-}
-/* 🐉 비에고: 보스 빙의 */
-var VG={on:false,t:0,vis:null,v:0,sk:null};
-var BOSS_SK={
-  fan:{ic:'🔱',nm:'부채꼴 탄막',cd:4,ds:'앞쪽 부채꼴 (800%)',f:function(){chCone(chAim(),35,1,8,VG.col);}},
-  ring:{ic:'🌀',nm:'전방위 탄막',cd:5,ds:'내 주변 전부 (700%)',f:function(){chAoe(P.x,P.z,18,7,VG.col,1);}},
-  dash:{ic:'💨',nm:'돌진',cd:4,ds:'커서 쪽으로 돌진 (800%)',f:function(){chDash(chAim(),30,8,VG.col);}},
-  spiral:{ic:'🌪️',nm:'나선 탄막',cd:7,ds:'3초 동안 주변 공격 (150% × 8번)',f:function(){chZone(0,0,14,1.5,8,0.35,VG.col,true);}},
-  rain:{ic:'☄️',nm:'폭격',cd:6,ds:'적 5곳에 폭격 (500%)',f:function(){var ts=augTargets(5,60);if(!ts.length)return 'x';ts.forEach(function(t,i){after(0.2+i*0.12,function(){chAoe(t.x,t.z,7,5,'#ff6d00');});});}},
-  shock:{ic:'🌊',nm:'지진파',cd:6,ds:'퍼져나가는 지진파 (400% × 3)',f:function(){var x=P.x,z=P.z;[10,18,26].forEach(function(r,i){after(i*0.25,function(){chAoe(x,z,r,4,VG.col,0.6);});});shk=Math.max(shk,2);}},
-  sum:{ic:'👺',nm:'졸개 소환',cd:8,ds:'졸개들이 주변을 공격 (200% × 6번)',f:function(){chZone(0,0,16,2,6,0.4,VG.col,true);}},
-  blink:{ic:'🌀',nm:'순간이동',cd:5,ds:'커서로 순간이동 + 폭발 (700%)',f:function(){var a=chAim(28);chBlink(a.x,a.z,VG.col);chAoe(P.x,P.z,10,7,VG.col);}}
-};
-function vgStart(){
-  var ks=G.x.bkt||[];if(!ks.length){toast('👑 아직 잡은 보스가 없어요 — 보스를 잡으면 빙의할 수 있어요','warn');return 'x';}
-  var v=ks[Math.floor(Math.random()*ks.length)],bt=BOSS_TYPES[v]||BOSS_TYPES[0];
-  var pool=[];bt.pool.concat(bt.p2||[],bt.p3||[]).forEach(function(p){if(pool.indexOf(p)<0&&BOSS_SK[p])pool.push(p);});
-  while(pool.length<3)pool.push(['ring','fan','dash'][pool.length]);
-  VG.on=true;VG.t=12;VG.v=v;VG.col=bt.col;
-  VG.sk=[BOSS_SK[pool[0]],BOSS_SK[pool[1]],BOSS_SK[pool[2]],{ic:'↩️',nm:'빙의 해제',cd:0,ds:'원래 모습으로',f:function(){}}];
-  VG.vis=makeBossVis(P.x,P.z,v);VG.vis.g.scale.set(0.4,0.4,0.4);
-  pChar.root.visible=false;
-  chBuff(12,1.5);chShield(0.4);DG.inv=Math.max(DG.inv,1);
-  CHCD[0]=CHCD[1]=CHCD[2]=0;
-  bossBanner('👑 빙의!',bt.nm+' — 12초 동안 보스의 힘','#64ffda');fxBoom(P.x,P.z,14,bt.col,1);
-}
-function vgEnd(){
-  if(!VG.on)return;VG.on=false;
-  if(VG.vis){scene.remove(VG.vis.g);try{VG.vis.mat.dispose();}catch(e){}VG.vis=null;}
-  pChar.root.visible=true;CHCD[0]=CHCD[1]=CHCD[2]=0;CHCD[3]=60;
-  burst(P.x,3,P.z,'#64ffda',30,8);chBarKey='';
-}
-function chTick(dt){
-  for(var k=0;k<4;k++)if(CHCD[k]>0)CHCD[k]=Math.max(0,CHCD[k]-dt);
-  if(VG.on){
-    VG.t-=dt;if(VG.t<=0||!DG.on||DG.over){vgEnd();}
-    else{VG.vis.g.position.set(P.x,P.y,P.z);VG.vis.g.rotation.y=Math.atan2(camera.position.x-P.x,camera.position.z-P.z);pChar.root.visible=false;}
-  }
-  chBarRender();
-}
-/* 던전 우클릭 이동 */
-function chMoveInput(){
-  if(!DG.on||!P.mt)return null;
-  var dx=P.mt.x-P.x,dz=P.mt.z-P.z,L=Math.hypot(dx,dz);
-  if(L<1.2||P.stun>0){P.mt=null;return null;}
-  dx/=L;dz/=L;var sy=Math.sin(cam.yaw),cy=Math.cos(cam.yaw);
-  return [cy*dx-sy*dz,-sy*dx-cy*dz];
-}
-function chMoveTo(cx,cy){
-  MW.cx=cx;MW.cy=cy;var g=scrToGround(cx,cy);if(!g)return;
-  P.mt={x:g.x,z:g.z};
-  var m=gm(0x69f0ae,0.9),rg=mk(ringG,m,g.x,0.3,g.z),tm=0;
-  addH({u:function(dt){tm+=dt;var k=tm/0.35;rg.scale.set(3*(1-k)+0.5,1,3*(1-k)+0.5);m.opacity=0.9*(1-k);return k>=1;},x:function(){scene.remove(rg);m.dispose();}});
-}
-/* QWER 스킬바 */
-var chBar=document.createElement('div');chBar.id='chBar';
-chBar.innerHTML=CH_KEYS.map(function(k,i){return '<button type="button" data-k="'+i+'"><i></i><b></b><span>'+k+'</span></button>';}).join('');
-document.body.appendChild(chBar);
-[].forEach.call(chBar.children,function(b){b.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();chCast(+b.dataset.k);});});
-var chBarKey='';
-function chBarRender(){
-  var L=DG.on&&!DG.over?chList():null;
-  var key=(L?L.map(function(s){return s.nm;}).join(','):'')+'|'+CHCD.map(function(c){return Math.ceil(c*4);}).join(',')+(VG.on?'v':'');
-  if(key===chBarKey)return;chBarKey=key;
-  chBar.style.display=L?'flex':'none';if(!L)return;
-  [].forEach.call(chBar.children,function(b,i){var s=L[i];
-    b.querySelector('b').textContent=s.ic;b.title=CH_KEYS[i]+' · '+s.nm+' — '+s.ds+(s.cd?' (쿨타임 '+s.cd+'초)':'');
-    var c=CHCD[i],p=c>0&&s.cd?c/s.cd:0;b.querySelector('i').style.height=Math.round(p*100)+'%';b.classList.toggle('cd',c>0);b.classList.toggle('r',i===3);
-    b.querySelector('i').textContent=c>0?Math.ceil(c):'';});
-}
-var chStyle=document.createElement('style');
-chStyle.textContent='#chBar{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);display:none;gap:8px;z-index:13}'+
- '#chBar button{position:relative;width:56px;height:56px;border-radius:12px;border:2px solid #4fc3f7;background:rgba(10,20,40,.85);color:#fff;cursor:pointer;overflow:hidden;padding:0;touch-action:manipulation}'+
- '#chBar button.r{border-color:#ffd54a;box-shadow:0 0 10px rgba(255,213,74,.6)}#chBar button b{font-size:26px;position:relative;z-index:2}'+
- '#chBar button span{position:absolute;left:4px;top:2px;font-size:12px;color:#ffd54a;font-weight:900;z-index:3}'+
- '#chBar button i{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:1;font-style:normal;font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#fff}#chBar button.cd b{opacity:.45}'+
- 'body.touch #chBar{left:auto;transform:none;right:calc(290px + var(--sar));bottom:calc(30px + var(--sab));flex-direction:column}';
-document.head.appendChild(chStyle);
-addEventListener('keydown',function(e){
-  if(!DG.on||e.repeat||modalOpen||(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName)))return;
-  var i={KeyQ:0,KeyW:1,KeyE:2,KeyR:3}[e.code];if(i===undefined)return;
-  if(G.skin<0||!CHS[G.skin]){if(!VG.on&&!chList())return;}
-  chCast(i);
-});
-/* =========================================================
    🤖 던전 매크로: 게임 중 키보드로 "//SHANGUS//" 입력 (다시 입력하면 해제)
    - 가장 가까운 몹/보스를 쫓아가서 자동 공격
    - 구멍·금 간 바닥 피해서 이동, 날아오는 투사체 회피, 보스 기 모을 때 거리 벌리기
@@ -2918,7 +2616,6 @@ function macInput(dt){
   var tx=null,tz=null,want=6,b=DG.boss,i,o,bd=1e9;
   for(i=0;i<DG.mobs.length;i++){o=DG.mobs[i];var d=Math.hypot(o.g.position.x-P.x,o.g.position.z-P.z);if(d<bd){bd=d;tx=o.g.position.x;tz=o.g.position.z;want=3+o.r;}}
   if(b){var dbs=Math.hypot(b.g.position.x-P.x,b.g.position.z-P.z);if(tx===null||dbs<bd+20){tx=b.g.position.x;tz=b.g.position.z;want=b.r+5;bd=dbs;}}
-  if(tx!==null&&bd<28&&chList()&&P.stun<=0){for(var ck=0;ck<4;ck++){if(CHCD[ck]<=0&&!(VG.on&&ck===3)){chCast(ck);break;}}} /* 스킬 자동 사용 */
   var vx=0,vz=0;
   if(tx!==null){var ddx=tx-P.x,ddz=tz-P.z,L=Math.hypot(ddx,ddz)||1;
     if(L>want){vx=ddx/L;vz=ddz/L;}
@@ -3341,7 +3038,7 @@ function bossDeadFx(x,z,mvp,lh,v,nPl){
   if(!DG.on||DG.over)return;
   slowMo(0.25,1.3);shk=Math.max(shk,4);flashA=Math.max(flashA,0.7);
   var bt=BOSS_TYPES[v|0]||BOSS_TYPES[0],df=dgDiff(),inf=!!df.inf,isMvp=mvp===NET.my&&(nPl||1)>1,isLh=lh===NET.my;
-  G.x.st.boss++;G.x.bkt=G.x.bkt||[];if(G.x.bkt.indexOf(v|0)<0)G.x.bkt.push(v|0);if(DG.df===2)G.x.st.hard++;addCoin(DG.df>=2?2:1,'보스 처치');
+  G.x.st.boss++;if(DG.df===2)G.x.st.hard++;addCoin(DG.df>=2?2:1,'보스 처치');
   bossBanner('👑 BOSS DOWN!',bt.nm+' 격파'+(isMvp?' · 🏅 MVP':'')+(isLh?' · 🗡️ 막타':''),'#ffd54a');
   var lines=[];
   if(!inf){ /* 일반 던전: 큰 보상 + 속도 */
@@ -3509,7 +3206,7 @@ function enterDungeon(df){
   if(m<3){toast('🏅 메달(수집한 큰 손 종류)이 3개 이상 필요해요! 지금 '+m+'개','warn');sfx.deny();return;}
   DG.myDf=dgDfOk(df)?df:1;
   if(!(DG.act&&!DG.wdone&&dgAnyInsideOthers()))DG.df=DG.myDf;
-  augReset();P.mt=null;CHCD=[0,0,0,0];CHX={};
+  augReset();
   DG.on=true;DG.runSt=0;DG.max=Math.round(dgMaxHp()*DG.S.hp);DG.hp=DG.max;DG.inv=1;DG.over=0;DG.cd=0;
   DG.fall=0;P.stun=0;DG.spawnT=1.5;dgSafeSpawn();
   camPos.set(P.x,12,P.z-12);
@@ -3517,8 +3214,7 @@ function enterDungeon(df){
   burst(P.x,3,P.z,'#b36bff',40,10);sfx.steal();
   var others=0;for(var id in REM)if(REM[id].dg)others++;
   var dfc=dgDiff();
-  toast('🕳️ 던전 입장! '+dfc.ico+' '+dfc.name+' · 공격은 자동 · 공격력 '+fmt(dgDmg())+' (속도에 비례) · HP '+DG.max+' · ⚠️ 구멍에 빠지면 즉사!'+(others?' · 👥 친구 '+others+'명과 함께!':''),'good');
-  if(!isTouch)after(2.5,function(){if(DG.on)toast('🖱️ 우클릭 = 이동 · 좌클릭 드래그 = 시점 · Q W E R = 캐릭터 스킬 · H = 포션 · 스페이스 = 점프','good');});
+  toast('🕳️ 던전 입장! '+dfc.ico+' '+dfc.name+' · [E] 베기 공격력 '+fmt(dgDmg())+' (속도에 비례) · HP '+DG.max+' · ⚠️ 구멍에 빠지면 즉사!'+(others?' · 👥 친구 '+others+'명과 함께!':''),'good');
   if(hostSide())dgWorldJoin(DG.myDf);else netSendState();
   if(DG.df===3)after(0.5,function(){augOpen(0);}); /* 무한 모드: 시작 증강 */
 }
@@ -3741,7 +3437,7 @@ function bloodSteal(R){
   if(Math.random()<0.35)floatText('🩸+'+fmt(Math.round(heal)),VW()/2,VH()*0.5,0,'dmg');
 }
 function enemyNear(){
-  var w=curWeapon(),R=w.k==='gun'?w.rng:Math.max(11,9*DG.S.range+1),i;for(i=0;i<DG.mobs.length;i++)if(Math.hypot(DG.mobs[i].g.position.x-P.x,DG.mobs[i].g.position.z-P.z)<R)return true;
+  var R=11,i;for(i=0;i<DG.mobs.length;i++)if(Math.hypot(DG.mobs[i].g.position.x-P.x,DG.mobs[i].g.position.z-P.z)<R)return true;
   var b=DG.boss;return !!(b&&Math.hypot(b.g.position.x-P.x,b.g.position.z-P.z)<R+7);
 }
 /* 투사체: 방장이 만들고 모두에게 알림 → 각자 움직이고, 내 캐릭터만 맞았는지 판정 */
@@ -3960,9 +3656,9 @@ function updateDungeon(dt){
   if(DG.gsN){DG.gsT-=dt;if(DG.gsT<=0)DG.gsN=0;}if(DG.duskT>0)DG.duskT-=dt;
   if(DG.bsh>0){DG.bshT=(DG.bshT||0)-dt;if(DG.bshT<=0)DG.bsh=Math.max(0,DG.bsh-DG.max*0.06*dt);} /* 붉은 보호막: 4초 동안 안 베면 줄어들어요 */
   augTick(dt);
-  pChar.root.visible=!VG.on&&!(DG.inv>0&&Math.floor(DG.inv*20)%2===0);
+  pChar.root.visible=!(DG.inv>0&&Math.floor(DG.inv*20)%2===0);
   $('shop').classList.add('hide');
-  if(!DG.over&&enemyNear())dgAttack(); /* 던전 공격은 자동 */
+  if(!DG.over&&(keys.KeyE||((isTouch||MAC.on)&&enemyNear())))dgAttack();
   var tl=tileAt();
   DG.spawnT=Math.max(0,DG.spawnT-dt);
   if(DG.spawnT>0&&tl.st!==0&&!DG.over){dgSafeSpawn();tl=tileAt();} /* 막 들어왔는데 구멍/금 간 칸이면 옮겨줘요 */
@@ -4129,13 +3825,10 @@ function computeGoal(onPad){
 }
 function update(dt,t){
   /* ----- 입력 → 이동 ----- */
-  var wasd=!DG.on; /* 던전에서는 WASD 대신 QWER 스킬 · 이동은 우클릭/방향키 */
-  var ix=(((wasd&&keys.KeyD)||keys.ArrowRight)?1:0)-(((wasd&&keys.KeyA)||keys.ArrowLeft)?1:0);
-  var iy=(((wasd&&keys.KeyW)||keys.ArrowUp)?1:0)-(((wasd&&keys.KeyS)||keys.ArrowDown)?1:0);
+  var ix=((keys.KeyD||keys.ArrowRight)?1:0)-((keys.KeyA||keys.ArrowLeft)?1:0);
+  var iy=((keys.KeyW||keys.ArrowUp)?1:0)-((keys.KeyS||keys.ArrowDown)?1:0);
   ix+=joy.x;iy+=joy.y;
-  if(P.mt&&(ix||iy||!DG.on))P.mt=null;
-  var mi=macInput(dt);if(mi){ix+=mi[0];iy+=mi[1];P.mt=null;}
-  var cm=chMoveInput();if(cm){ix+=cm[0];iy+=cm[1];}
+  var mi=macInput(dt);if(mi){ix+=mi[0];iy+=mi[1];}
   var mag=Math.hypot(ix,iy);if(mag>1){ix/=mag;iy/=mag;mag=1;}
   var spd=realSpeed(G.speed)*(DG.on?DG.S.move:gearMul('move'))*skMove(),moving=false;
   P.stun=Math.max(0,P.stun-dt);
@@ -4198,7 +3891,7 @@ function update(dt,t){
   pads.forEach(function(p,i){if(G.qty[i]>0)p.tex.offset.y-=dt*0.8;});
   for(var bs=0;bs<SLOT_N;bs++){var bb=BASES[bs];if(bs!==mySlot&&bb.built&&bb.g.visible)bb.pads.forEach(function(p){if(p.q>0)p.tex.offset.y-=dt*0.8;});}
   basesT+=dt;if(basesT>0.5){basesT=0;refreshBases();}
-  extrasTick(dt);skTick(dt);chTick(dt);usbTick(dt);
+  extrasTick(dt);skTick(dt);usbTick(dt);
   if(hostSide())hostDropsTick(dt);dropsVis(dt);
   for(var jq=0;jq<JPADS.length;jq++)JPADS[jq].tex.rotation.z+=dt*1.5;
 
@@ -4293,7 +3986,7 @@ addEventListener('keydown',function(e){
   if(!started||modalOpen)return;
   if((e.code==='Enter'||e.code==='NumpadEnter')&&!e.repeat&&NET.mode!=='solo'){e.preventDefault();chatOpen();return;}
   if(e.code==='Space'||e.code.indexOf('Arrow')===0)e.preventDefault();
-  if(e.code==='KeyE'&&!e.repeat&&!DG.on)trySteal();
+  if(e.code==='KeyE'&&!e.repeat)trySteal();
   if(e.code==='KeyM'&&!e.repeat)setBgmMuted(!bgmMuted);
   keys[e.code]=true;
 });
@@ -4317,7 +4010,6 @@ var dragId=null,lx=0,ly=0,cv=renderer.domElement;
 /* 우클릭 꾹 누르기: 마우스 포인터를 그 자리에 고정(숨김)하고 화면만 돌려요 */
 var rLock=false;
 cv.addEventListener('pointerdown',function(e){
-  if(e.pointerType==='mouse'&&e.button===2&&DG.on){chMoveTo(e.clientX,e.clientY);e.preventDefault();return;} /* 던전: 우클릭 = 이동 */
   if(e.pointerType==='mouse'&&e.button===2){
     rLock=true;try{cv.requestPointerLock();}catch(_){}e.preventDefault();return;
   }
@@ -4335,11 +4027,6 @@ function endDrag(e){if(e.pointerId===dragId)dragId=null;}
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 cv.addEventListener('wheel',function(e){cam.dist=clamp(cam.dist+e.deltaY*0.01,8,32);e.preventDefault();},{passive:false});
 cv.addEventListener('contextmenu',function(e){e.preventDefault();});
-var mvT=0;
-cv.addEventListener('pointermove',function(e){
-  if(e.pointerType!=='mouse')return;MW.cx=e.clientX;MW.cy=e.clientY;
-  if(DG.on&&(e.buttons&2)){var n=performance.now();if(n-mvT>120){mvT=n;chMoveTo(e.clientX,e.clientY);}} /* 우클릭 누른 채 끌면 계속 따라가요 */
-});
 document.addEventListener('mousemove',function(e){
   if(!rLock||document.pointerLockElement!==cv)return;
   cam.yaw-=(e.movementX||0)*0.004;
@@ -4499,7 +4186,7 @@ var WEAPONS=[
 ];
 /* 아이템: 사면 가방에 쌓이고 '사용'으로 써요 */
 var ITEMS=[
-  {id:'hp',nm:'체력 포션',ic:'🧪',g:0,price:1e6,ds:'던전에서 체력 50% 회복 (던전에서 H키)'},
+  {id:'hp',nm:'체력 포션',ic:'🧪',g:0,price:1e6,ds:'던전에서 체력 50% 회복 (던전에서 Q키)'},
   {id:'rage',nm:'분노 물약',ic:'💪',g:1,price:5e7,ds:'5분 동안 던전 공격력 ×2',buff:'dmg',min:5},
   {id:'goldp',nm:'황금 물약',ic:'💸',g:2,price:1e8,ds:'10분 동안 돈 획득 +100%',buff:'money',min:10},
   {id:'boltp',nm:'번개 물약',ic:'⚡',g:2,price:1e8,ds:'10분 동안 속도 획득 +100%',buff:'speed',min:10},
@@ -4569,7 +4256,7 @@ var EV_TITLES=[
 [WEAPONS,ITEMS,ACCS,AURAS].forEach(function(L){L.forEach(function(o){if(o.price)o.price=Math.round(o.price*BAL.priceMul);});});
 function findBy(list,id){for(var i=0;i<list.length;i++)if(list[i].id===id)return list[i];return null;}
 /* ---------- 저장 데이터 ---------- */
-function xDefault(){return {bkt:[],wpn:['fist'],wq:'fist',acc:[],acq:[],aur:[],au:'',it:{},ti:[],tq:'',bf:{},coin:0,st:{steal:0,steps:0,boss:0,hard:0,inf:0,raid:0,snatch:0,earned:0,play:0,buys:0},ev:{day:'',gt:-1}};}
+function xDefault(){return {wpn:['fist'],wq:'fist',acc:[],acq:[],aur:[],au:'',it:{},ti:[],tq:'',bf:{},coin:0,st:{steal:0,steps:0,boss:0,hard:0,inf:0,raid:0,snatch:0,earned:0,play:0,buys:0},ev:{day:'',gt:-1}};}
 G.x=xDefault();
 (function(){try{var d=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');if(d.x&&typeof d.x==='object'){var X=xDefault(),v=d.x;
   ['wpn','acc','acq','aur','ti'].forEach(function(k){if(Array.isArray(v[k]))X[k]=v[k].filter(function(a){return typeof a==='string';}).slice(0,200);});
@@ -4614,7 +4301,6 @@ function gearDungeon(S){
   var w=curWeapon();if(w.k==='melee'){S.dmg*=w.dmg;S.cd*=w.cd;S.range*=w.rng;}
   if(w.inv)S.inv*=w.inv; /* 무적 시간 배율 (피의 계약검: 0.5) */
   if(w.f)w.f(S); /* 롤 아이템 특수 효과 */
-  if(G.skin>=0&&SKINS[G.skin]&&SKINS[G.skin].f)SKINS[G.skin].f(S); /* 캐릭터 패시브 */
   G.x.acq.forEach(function(id){var a=findBy(ACCS,id);if(a&&a.f)a.f(S);});
 }
 function curWeapon(){return findBy(WEAPONS,G.x.wq)||WEAPONS[0];}
@@ -4705,7 +4391,7 @@ function useItem(id){
   return true;
 }
 /* ---------- 상점 창 ---------- */
-var STORE_TABS=[['char','🎭 캐릭터'],['skill','🌀 스킬'],['wpn','⚔️ 무기'],['lol','🎮 롤 아이템'],['item','🧪 아이템'],['acc','💍 장신구'],['aura','✨ 아우라'],['quest','📜 퀘스트·칭호'],['event','🎉 이벤트']];
+var STORE_TABS=[['skill','🌀 스킬'],['wpn','⚔️ 무기'],['lol','🎮 롤 아이템'],['item','🧪 아이템'],['acc','💍 장신구'],['aura','✨ 아우라'],['quest','📜 퀘스트·칭호'],['event','🎉 이벤트']];
 var storeEl=document.createElement('div');storeEl.id='storeModal';
 storeEl.innerHTML='<div class="stBox"><div class="stHead"><b>🛍️ 상점</b><span id="stMoney"></span><button id="stClose" type="button">✕</button></div><div id="stTabs"></div><div id="stInfo"></div><div id="stList"></div></div>';
 document.body.appendChild(storeEl);
@@ -4743,18 +4429,13 @@ function storeRender(){
   }else if(storeTab==='wpn'){
     var w=curWeapon();info='들고 있는 무기: '+w.ic+' '+w.nm+' · 던전에서 [E]로 공격 · 총은 가까운 적을 자동 조준해요';
     WEAPONS.forEach(function(o){if(o.lol)return;h+=wpnCard(o);});
-  }else if(storeTab==='char'){
-    info='🎭 캐릭터: 러닝머신 배율 + 던전 패시브 + QWER 스킬(던전) · 지금 '+(G.skin>=0?SKINS[G.skin].name:'기본 캐릭터');
-    h+=card({ic:'🧍',nm:'기본 캐릭터',g:0,ds:'러닝머신 속도 ×1'},G.skin===-1?'착용 중':'',btn('skd','-1',G.skin===-1?'✅ 착용 중':'착용',G.skin===-1));
-    SKINS.map(function(o,i){return i;}).sort(function(a,b){return SKINS[a].price-SKINS[b].price;}).forEach(function(i){var o=SKINS[i],own=G.owned[i],cur=G.skin===i,sk=CHS[i];
-      h+=card({ic:o.ic,nm:o.name,g:o.g,ds:'🏃 러닝머신 속도 획득 ×'+o.mult+(o.ds?'<br>'+o.ds:'')+(sk?'<br><span style="color:#81d4fa">'+sk.map(function(q,k){return '<b>'+CH_KEYS[k]+'</b> '+q.ic+q.nm;}).join(' · ')+'</span>':'')},cur?'착용 중':'',own?btn('sk',i,cur?'✅ 착용 중':'착용',cur):btn('sk',i,'💰 '+fmt(o.price),G.money<o.price));});
   }else if(storeTab==='lol'){
     info='🎮 롤 아이템 · 무기는 1개 장착, 장신구는 일반 장신구와 합쳐서 최대 3개 ('+G.x.acq.length+'/3)';
     h+='<div class="stSec">⚔️ 무기</div>';WEAPONS.forEach(function(o){if(o.lol)h+=wpnCard(o);});
     h+='<div class="stSec">💍 장신구</div>';ACCS.forEach(function(o){if(o.lol)h+=accCard(o);});
   }else if(storeTab==='item'){
     var bl=[];['dmg','money','speed'].forEach(function(k){if(buffOn(k))bl.push({dmg:'💪 공격 ×2',money:'💸 돈 ×2',speed:'⚡ 속도 ×2'}[k]+' '+Math.ceil((G.x.bf[k]-Date.now())/60000)+'분');});
-    info='사서 가방에 넣고 「사용」 · 체력 포션은 던전에서 H키'+(bl.length?' · 지금 버프: '+bl.join(', '):'');
+    info='사서 가방에 넣고 「사용」 · 체력 포션은 던전에서 Q키'+(bl.length?' · 지금 버프: '+bl.join(', '):'');
     ITEMS.forEach(function(o){var n=G.x.it[o.id]||0;h+=card(o,n?'가방 '+n+'개':'',btn('bi',o.id,priceTxt(o),!canPay(o))+(n&&o.id!=='feather'?btn('use',o.id,'사용'):''));});
   }else if(storeTab==='acc'){
     info='장신구는 최대 3개 장착 ('+G.x.acq.length+'/3) · ☘️🌟 한정 장신구는 🎉이벤트 탭/선물 상자에서';
@@ -4795,8 +4476,6 @@ $('stList').addEventListener('click',function(e){
   else if(a==='sq0'||a==='sq1'){var sl=a==='sq0'?0:1;if(G.x.skq[1-sl]===id)G.x.skq[1-sl]=G.x.skq[sl];G.x.skq[sl]=id;skKey='';}
   else if(a==='bw'){o=findBy(WEAPONS,id);if(pay(o)){G.x.wpn.push(id);G.x.wq=id;toast(o.ic+' '+o.nm+' 구매·장착!','good');}}
   else if(a==='wq'){G.x.wq=id;}
-  else if(a==='sk'){skinClick(+id);}
-  else if(a==='skd'){skinDefault();}
   else if(a==='bi'){o=findBy(ITEMS,id);if(pay(o)){G.x.it[id]=(G.x.it[id]||0)+1;}}
   else if(a==='use'){useItem(id);}
   else if(a==='ba'){o=findBy(ACCS,id);if(pay(o)){G.x.acc.push(id);if(G.x.acq.length<3)G.x.acq.push(id);toast(o.ic+' '+o.nm+' 획득!','good');}}
@@ -4812,7 +4491,7 @@ addEventListener('keydown',function(e){
   if(storeOpen&&(e.key==='Escape'||e.code==='KeyB')){storeClose();e.preventDefault();return;}
   if(!started||modalOpen)return;
   if(e.code==='KeyB'){storeOpenFn();e.preventDefault();}
-  else if(e.code==='KeyH'&&DG.on){if(!useItem('hp'))toast('🧪 체력 포션이 없어요 (상점 → 아이템)','warn');}
+  else if(e.code==='KeyQ'&&DG.on){if(!useItem('hp'))toast('🧪 체력 포션이 없어요 (상점 → 아이템)','warn');}
 });
 $('storeBtn').addEventListener('click',function(){if(storeOpen)storeClose();else storeOpenFn();});
 var stStyle=document.createElement('style');
@@ -4916,7 +4595,7 @@ function skTick(dt){
   for(var id in skCd)if(skCd[id]>0)skCd[id]=Math.max(0,skCd[id]-dt);
   ['inv','invis','spd','dmg'].forEach(function(k){if(SB[k]>0)SB[k]=Math.max(0,SB[k]-dt);});
   if(SB.inv>0){P.stun=0;if(DG.on)DG.inv=Math.max(DG.inv,0.1);if(Math.random()<dt*20*fxMul)emit(P.x+rand(-1.5,1.5),rand(1,5),P.z+rand(-1.5,1.5),0,2,0,'#ffd54a',0.4,-1);}
-  if(SB.invis>0&&pChar)pChar.root.visible=Math.floor(performance.now()/120)%3!==0;else if(pChar&&!pChar.root.visible&&started&&!VG.on)pChar.root.visible=true;
+  if(SB.invis>0&&pChar)pChar.root.visible=Math.floor(performance.now()/120)%3!==0;else if(pChar&&!pChar.root.visible&&started)pChar.root.visible=true;
   skBarRender();
 }
 /* 스킬 바 (화면 아래 가운데) */
