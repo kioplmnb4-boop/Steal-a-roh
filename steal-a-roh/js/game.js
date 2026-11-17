@@ -152,7 +152,7 @@ var BK_N=3,bkArmed={};
 function bkKey(i){return SAVE_KEY+'-bk'+(i+1);}
 function bkRead(i){try{var s=localStorage.getItem(bkKey(i));return s?JSON.parse(s):null;}catch(e){return null;}}
 function bkMsg(t,bad){var e=$('bkMsg');e.textContent=t;e.style.color=bad?'#ff8a80':'#b9f6ca';}
-function bkSnap(){return {at:Date.now(),money:G.money,speed:G.speed,qty:G.qty.slice(),counts:G.counts.slice(),owned:G.owned.slice(),skin:G.skin};}
+function bkSnap(){return {at:Date.now(),money:G.money,speed:G.speed,qty:G.qty.slice(),counts:G.counts.slice(),owned:G.owned.slice(),skin:G.skin,x:G.x?JSON.parse(JSON.stringify(G.x)):undefined};}
 function bkInfo(d){
   var n=0;if(Array.isArray(d.counts))for(var i=0;i<d.counts.length;i++)if(d.counts[i]>0)n++;
   var dt=new Date(d.at||0),ts=dt.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -197,7 +197,7 @@ $('bkList').addEventListener('click',function(e){
     if(!bkArm('load'+i,'⚠️ 현재 진행이 이 백업으로 바뀌어요. 한 번 더 누르면 불러오기!'))return;
     try{
       noSave=true;
-      localStorage.setItem(SAVE_KEY,JSON.stringify({t:Date.now(),money:d.money,speed:d.speed,qty:d.qty,counts:d.counts,owned:d.owned,skin:d.skin}));
+      localStorage.setItem(SAVE_KEY,JSON.stringify({t:Date.now(),money:d.money,speed:d.speed,qty:d.qty,counts:d.counts,owned:d.owned,skin:d.skin,x:d.x}));
       bkMsg('📂 불러오는 중...');location.reload();
     }catch(err){noSave=false;bkMsg('불러오기에 실패했어요',true);}
   }else if(a==='del'&&d){
@@ -206,6 +206,61 @@ $('bkList').addEventListener('click',function(e){
     bkRender();
   }
 });
+/* =========================================================
+   📦 진행 파일 (USB · 다른 컴퓨터로 옮기기)
+   - 저장: 진행 전부(돈·속도·트로피·장비·스킬·칭호·백업 슬롯·설정)를 .json 파일 하나로
+   - 불러오기: 그 파일을 고르면 이 컴퓨터에 그대로 복원
+   - 크롬/엣지: 저장할 때 고른 파일에 20초마다 자동 저장 (USB 파일을 한 번 고르면 끝)
+   ========================================================= */
+var USB_FILE_KEYS=function(){return [SAVE_KEY,SAVE_KEY+'-bk1',SAVE_KEY+'-bk2',SAVE_KEY+'-bk3','steal-a-roh-inf-best-s2','steal-a-roh-xmas','steal-a-roh-fx','steal-a-roh-patch-seen'];};
+var usbHandle=null,usbLast=0,usbT=0,usbDirty=false;
+function usbData(){
+  save();var o={app:'steal-a-roh',v:1,at:Date.now(),data:{}};
+  USB_FILE_KEYS().forEach(function(k){try{var v=localStorage.getItem(k);if(v!==null)o.data[k]=v;}catch(e){}});
+  return JSON.stringify(o);
+}
+function usbWrite(h,txt){return h.createWritable().then(function(w){return w.write(txt).then(function(){return w.close();});});}
+function usbName(){var d=new Date();return 'steal-a-roh-save-'+(d.getMonth()+1)+'-'+d.getDate()+'.json';}
+function usbExport(){
+  var txt=usbData();
+  if(window.showSaveFilePicker){
+    window.showSaveFilePicker({suggestedName:'steal-a-roh-save.json',types:[{description:'Steal a Roh 진행 파일',accept:{'application/json':['.json']}}]})
+      .then(function(h){return usbWrite(h,txt).then(function(){usbHandle=h;usbLast=Date.now();usbDirty=false;try{sessionStorage.setItem('sar-usb','1');}catch(e){}
+        bkMsg('✅ 저장 완료! 이제 이 파일에 20초마다 자동 저장돼요 (USB를 뽑기 전에 한 번 더 저장 추천)');usbStatus();});})
+      .catch(function(e){if(e&&e.name==='AbortError')return;usbDownload(txt);});
+  }else usbDownload(txt);
+}
+function usbDownload(txt){
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=usbName();
+  document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1000);
+  usbLast=Date.now();usbDirty=false;
+  bkMsg('📥 다운로드 폴더에 저장됐어요 → 그 파일을 USB로 옮겨 주세요');
+}
+function usbImport(file){
+  if(!file)return;var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var o=JSON.parse(rd.result);if(!o||o.app!=='steal-a-roh'||!o.data||!o.data[SAVE_KEY])throw 0;
+      noSave=true;for(var k in o.data)if(typeof o.data[k]==='string')localStorage.setItem(k,o.data[k]);
+      try{sessionStorage.setItem('sar-usb','1');}catch(e){}
+      bkMsg('📂 불러오는 중... ('+new Date(o.at).toLocaleString()+' 저장본)');setTimeout(function(){location.reload();},400);
+    }catch(e){noSave=false;bkMsg('이 파일은 Steal a Roh 진행 파일이 아니에요',true);}
+  };
+  rd.readAsText(file);
+}
+function usbStatus(){var e=$('usbStat');if(!e)return;e.textContent=usbHandle?'🔗 USB 파일에 자동 저장 중 · 마지막 저장 '+new Date(usbLast).toLocaleTimeString():'';}
+function usbTick(dt){
+  if(!usbHandle)return;usbT+=dt;
+  if(usbT>=20){usbT=0;usbWrite(usbHandle,usbData()).then(function(){usbLast=Date.now();usbDirty=false;usbStatus();}).catch(function(){});}
+}
+/* USB로 하던 중이면 창 닫기 전에 한 번 물어봐요 */
+addEventListener('beforeunload',function(e){
+  var usb=false;try{usb=sessionStorage.getItem('sar-usb')==='1';}catch(_){}
+  if(usb&&!noSave&&Date.now()-usbLast>25000){e.preventDefault();e.returnValue='USB 진행 파일에 저장했나요?';return e.returnValue;}
+});
+$('usbSave').addEventListener('click',usbExport);
+$('usbLoad').addEventListener('click',function(){$('usbFile').value='';$('usbFile').click();});
+$('usbFile').addEventListener('change',function(){usbImport(this.files&&this.files[0]);});
 function income(){var s=0;for(var i=0;i<N;i++)s+=G.counts[i]*NPCS[i].income;return s;}
 
 /* =========================================================
@@ -3747,7 +3802,7 @@ function update(dt,t){
   pads.forEach(function(p,i){if(G.qty[i]>0)p.tex.offset.y-=dt*0.8;});
   for(var bs=0;bs<SLOT_N;bs++){var bb=BASES[bs];if(bs!==mySlot&&bb.built&&bb.g.visible)bb.pads.forEach(function(p){if(p.q>0)p.tex.offset.y-=dt*0.8;});}
   basesT+=dt;if(basesT>0.5){basesT=0;refreshBases();}
-  extrasTick(dt);skTick(dt);
+  extrasTick(dt);skTick(dt);usbTick(dt);
   if(hostSide())hostDropsTick(dt);dropsVis(dt);
   for(var jq=0;jq<JPADS.length;jq++)JPADS[jq].tex.rotation.z+=dt*1.5;
 

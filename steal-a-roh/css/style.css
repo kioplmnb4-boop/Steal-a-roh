@@ -222,3 +222,9 @@ body.touch #verTag{bottom:calc(2px + var(--sab));right:calc(6px + var(--sar))}
 body.touch #xmasBtn{display:none;left:auto;right:calc(8px + var(--sar));top:calc(244px + var(--sat));z-index:25;min-width:150px;padding:10px 14px;font-size:14px;text-align:left;background:rgba(10,20,40,.92)}
 body.touch #xmasBtn.on{background:rgba(198,40,40,.9)}
 body.touch.menu #xmasBtn{display:block}
+
+/* ---------- 📦 USB 저장/불러오기 ---------- */
+.usbBox{margin:10px 0 4px;padding:10px 12px;border:1px solid rgba(255,213,74,.5);border-radius:12px;background:rgba(255,213,74,.07)}
+.usbBox b{display:block;font-size:15px}.usbBox small{display:block;color:#b0bec5;font-size:12px;margin:3px 0 8px;line-height:1.45}
+.usbBtns{display:flex;gap:8px;flex-wrap:wrap}.usbBtns button{flex:1;min-width:140px;border:0;border-radius:9px;padding:9px 10px;font-weight:800;cursor:pointer;background:#2e7d32;color:#fff}
+.usbBtns button+button{background:#1565c0}#usbStat{font-size:12px;color:#81c784;margin-top:6px}
